@@ -19,6 +19,7 @@ Options:
 """
 from docopt import docopt
 import logging
+import magic
 import os
 from PIL import Image
 
@@ -35,6 +36,7 @@ class MediaResizer:
     _arguments = None
     _log_level = 'WARN'
     _default_size = 800, 600
+    _folder = ''
 
     def __init__(self):
         self._arguments = docopt(__doc__, version='0.1')
@@ -53,23 +55,38 @@ class MediaResizer:
         logging.basicConfig(level=self._log_level,
                             format='%(asctime)s %(message)s')
 
+    def resize_image(self, image, mime):
+        try:
+            im = Image.open(image)
+            name, extension = os.path.splitext(image)
+            sub_type = mime.split('/')[1]
+            outfile = os.path.join(self._folder, name + '_resized' + extension)
+            logging.error('creating file for %s.' % sub_type)
+            im.thumbnail(self._default_size, Image.ANTIALIAS)
+            im.save(outfile, sub_type.upper())
+        except IOError:
+            logging.error('Cannot create new image for %s.' % image)
+
     def main(self):
         logging.info('Directory added: %s', self._arguments['<folder>'])
+        self._folder = self._arguments['<folder>']
 
-        if os.path.basename(self._arguments['<folder>']).startswith('.'):
-            logging.info('Ignoring dot files.')
+        if os.path.isfile(self._folder):
+            logging.error('Program only handles folders.')
+            exit(1)
+
+        if os.path.basename(self._folder).startswith('.'):
+            logging.info('Ignoring dot folders.')
             exit()
 
-        # Testing with one file instead of foler for now.
-        img_filename = self._arguments['<folder>']
-        try:
-            im = Image.open(img_filename)
-            # im.show()
-            outfile = os.path.splitext(img_filename)[0] + '_resized.jpg'
-            im.thumbnail(self._default_size, Image.ANTIALIAS)
-            im.save(outfile, 'JPEG')
-        except IOError:
-            logging.error('Cannot create new image for %s.' % img_filename)
+        files = [f for f in os.listdir(self._folder)
+                 if os.path.isfile(os.path.join(self._folder, f))]
+
+        for file in files:
+            mime = magic.Magic(mime=True)
+            mime_type = mime.from_file(os.path.join(self._folder, file))
+            if mime_type.startswith('image'):
+                self.resize_image(os.path.join(self._folder, file), mime_type)
 
 
 if __name__ == '__main__':

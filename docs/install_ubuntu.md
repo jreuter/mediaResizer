@@ -10,3 +10,7 @@ __Tested on 12.04 LTS version of Linux Mint__
 
         # pip install PIL
 
+3.  Install python-magic
+
+        # sudo pip install python-magic
+
