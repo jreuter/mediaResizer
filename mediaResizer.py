@@ -22,6 +22,7 @@ import logging
 import magic
 import os
 from PIL import Image
+import pyexiv2
 
 
 class MediaResizerException(Exception):
@@ -72,13 +73,30 @@ class MediaResizer:
         :param mime: Mime type of original image (same as new image for now).
         """
         try:
-            im = Image.open(image)
+            full_path = os.path.join(self._folder, image)
+            im = Image.open(full_path)
+            # TODO(jreuter): Split this to a function.
+            metadata = pyexiv2.ImageMetadata(full_path)
+            metadata.read()
             name, extension = os.path.splitext(image)
             sub_type = mime.split('/')[1]
-            outfile = os.path.join(self._folder, name + '_resized' + extension)
+            # TODO(jreuter): Store this in a variable to be re-used.
+            size_string = str(self._default_size[0]) + \
+                          'x' + str(self._default_size[1])
+            new_folder = 'resized_' + size_string
+            directory = os.path.join(self._folder, new_folder)
+            if not os.path.exists(directory):
+                os.makedirs(directory)
+            outfile = os.path.join(directory,
+                                   name + '_' + size_string + extension)
             logging.error('creating file for %s.' % sub_type)
             im.thumbnail(self._default_size, Image.ANTIALIAS)
             im.save(outfile, sub_type.upper())
+            # TODO(jreuter): Split this out to a function.
+            outfile_metadata = pyexiv2.ImageMetadata(outfile)
+            outfile_metadata.read()
+            metadata.copy(outfile_metadata)
+            outfile_metadata.write()
         except IOError:
             logging.error('Cannot create new image for %s.' % image)
 
@@ -108,13 +126,14 @@ class MediaResizer:
         # Loop through file list for processing.
         for file in files:
             # Get mime type (I hate that it's called magic).
+            # TODO(jreuter): Can we pull mimetype from pyexiv2?
             mime = magic.Magic(mime=True)
             mime_type = mime.from_file(os.path.join(self._folder, file))
             # If it's an image, pass to the image resizer.
             # TODO(jreuter): Make this smarter since we can't process all types
             # of images.
             if mime_type.startswith('image'):
-                self.resize_image(os.path.join(self._folder, file), mime_type)
+                self.resize_image(file, mime_type)
 
 
 if __name__ == '__main__':
