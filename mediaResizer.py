@@ -23,11 +23,12 @@ import magic
 import os
 from PIL import Image
 import pyexiv2
+import subprocess
 
 
 class MediaResizerException(Exception):
     """
-    Excepton handling for the MediaResizer.
+    Exception handling for the MediaResizer.
     """
     def __init__(self, message):
         self.message = message
@@ -89,7 +90,7 @@ class MediaResizer:
                 os.makedirs(directory)
             outfile = os.path.join(directory,
                                    name + '_' + size_string + extension)
-            logging.error('creating file for %s.' % sub_type)
+            logging.info('creating file for %s.' % outfile)
             im.thumbnail(self._default_size, Image.ANTIALIAS)
             im.save(outfile, sub_type.upper())
             # TODO(jreuter): Split this out to a function.
@@ -99,6 +100,47 @@ class MediaResizer:
             outfile_metadata.write()
         except IOError:
             logging.error('Cannot create new image for %s.' % image)
+
+    def convert_video(self, video, mime):
+        """
+        Converts one video using HandBrakeCLI.  This currently only works on
+        linux since it builds a full path to the binary in /usr/bin/.
+
+        :param video: Video file to convert.
+        :param mime: MimeType string of file.
+        """
+        try:
+            full_path = os.path.join(self._folder, video)
+            name, extension = os.path.splitext(video)
+            # TODO(jreuter): Store this in a variable to be re-used.
+            size_string = str(self._default_size[0]) + \
+                          'x' + str(self._default_size[1])
+            new_folder = 'resized_' + size_string
+            directory = os.path.join(self._folder, new_folder)
+            destination_file = os.path.join(directory, name + '.m4v')
+            if not os.path.exists(directory):
+                os.makedirs(directory)
+            handbrake_command = [
+                os.path.join(os.path.sep, 'usr', 'bin', 'HandBrakeCLI'),
+                '-i', full_path,
+                '-o', destination_file
+            ]
+            logging.debug('cmd is %s' % ' '.join(handbrake_command))
+            logging.info('Creating file %s.' % destination_file)
+            handbrake = subprocess.Popen(
+                handbrake_command,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
+            )
+            handbrake.wait()
+            out, err = handbrake.communicate()
+            if handbrake.returncode or err:
+                logging.error('Error from Handbrake: %s' % err)
+            logging.info('Done with video: %s.' % destination_file)
+        except OSError as ex:
+            logging.error('OS Error: %s.' % ex)
+        except IOError:
+            logging.error('Cannot create new video for %s.' % video)
 
     def main(self):
         """
@@ -134,6 +176,8 @@ class MediaResizer:
             # of images.
             if mime_type.startswith('image'):
                 self.resize_image(file, mime_type)
+            else:
+                self.convert_video(file, mime_type)
 
 
 if __name__ == '__main__':
