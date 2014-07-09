@@ -122,20 +122,27 @@ class MediaResizer:
                 os.makedirs(directory)
             handbrake_command = [
                 os.path.join(os.path.sep, 'usr', 'bin', 'HandBrakeCLI'),
+                '-v',
+                '-e', 'x264',
+                '--h264-profile', 'main',
+                # '--h264-level', '4',
+                '--x264-preset', 'slower',
+                '--quality', '21',
                 '-i', full_path,
                 '-o', destination_file
             ]
-            logging.debug('cmd is %s' % ' '.join(handbrake_command))
+            logging.info('cmd is %s' % ' '.join(handbrake_command))
             logging.info('Creating file %s.' % destination_file)
             handbrake = subprocess.Popen(
                 handbrake_command,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE
             )
-            handbrake.wait()
+            # handbrake.wait()
             out, err = handbrake.communicate()
             if handbrake.returncode or err:
-                logging.error('Error from Handbrake: %s' % err)
+                logging.error('Error from Handbrake %s.' % err)
+                return
             logging.info('Done with video: %s.' % destination_file)
         except OSError as ex:
             logging.error('OS Error: %s.' % ex)
