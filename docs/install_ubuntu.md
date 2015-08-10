@@ -6,7 +6,7 @@ __Tested on 12.04 LTS version of Linux Mint__
 
         # sudo apt-get install python-pip
 
-2.  Install PIL (if needed):
+2.  Install PIL (if needed - I didn't need this on the latest machine.):
 
         # pip install PIL
 
