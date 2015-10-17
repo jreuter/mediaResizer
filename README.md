@@ -27,4 +27,4 @@ hobbyists alike.
 
 ## Installation
 
-[Ubuntu](../docs/install_ubuntu.md)
+[Ubuntu](docs/install_ubuntu.md)
