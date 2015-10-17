@@ -24,3 +24,7 @@ would be dragging a folder to the NAS in which this code would generate
 smaller files and automatically upload those to a different server or a
 different directory.  I can see this being very useful for photographers and
 hobbyists alike.
+
+## Installation
+
+[Ubuntu](../docs/install_ubuntu.md)

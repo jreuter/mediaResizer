@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # encoding: utf-8
-# Copyright 2014 Jarrod Reuter
+# Copyright 2014-2015 Jarrod Reuter
 
 """
 Program to process images and videos to desired format, resolution, and size.
