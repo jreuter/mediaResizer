@@ -1,0 +1,27 @@
+<!DOCTYPE HTML>
+<html>
+
+    <head><title>Media Resizer</title></head>
+
+    <body>
+        <h1>Media Resizer</h1>
+        Loading...
+    </body>
+
+    <script type="text/javascript">
+        window.$ = window.jQuery = require('jquery');
+        var mainAddr = 'http://localhost:5000';
+        $.ajax({
+            type: 'HEAD',
+            url: mainAddr,
+            success: function() {
+                //alert('all good');
+                location.replace(mainAddr);
+            },
+            error: function() {
+                alert('some errors happen...');
+            }
+        });
+    </script>
+
+</html>
