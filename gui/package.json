@@ -1,7 +1,13 @@
 {
-    "debug"     : false,
-    "name"      : "media-resizer",
-    "version"   : "0.1.0",
-    "main"      : "main.js",
-    "dependencies": {"electron-prebuilt":"", "jquery":""}
+  "debug": false,
+  "name": "media-resizer",
+  "version": "0.1.0",
+  "main": "main.js",
+  "dependencies": {
+    "electron-prebuilt": "",
+    "jquery": ""
+  },
+  "devDependencies": {
+    "electron-prebuilt": "~0.34.1"
+  }
 }

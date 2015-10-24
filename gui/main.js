@@ -21,7 +21,7 @@ app.on('window-all-closed', function() {
 // initialization and is ready to create browser windows.
 app.on('ready', function() {
     // call python
-    var subpy = require('child_process').spawn('python', [__dirname + '/hello.py']);
+    var subpy = require('child_process').spawn('python', [__dirname + '/client.py']);
 
     // Create the browser window.
     mainWindow = new BrowserWindow({width: 800, height: 600});
