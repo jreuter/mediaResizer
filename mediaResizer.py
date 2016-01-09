@@ -25,7 +25,11 @@ from PIL import Image
 import pyexiv2
 import subprocess
 import imageResizer
-from multiprocessing.dummy import Pool as ThreadPool
+from multiprocessing import Pool
+
+
+def unwrap_self(arg, **kwarg):
+    return MediaResizer.do_converstion(*arg, **kwarg)
 
 
 class MediaResizerException(Exception):
@@ -210,8 +214,8 @@ class MediaResizer:
                  if os.path.isfile(os.path.join(self._folder, f))]
 
         # Loop through file list for processing.
-        pool = ThreadPool()
-        results = pool.map(self.do_converstion, files)
+        pool = Pool()
+        results = pool.map(unwrap_self, zip([self]*len(files), files))
         # for file in files:
         #     # Get mime type (I hate that it's called magic).
         #     # TODO(jreuter): Can we pull mimetype from pyexiv2?
