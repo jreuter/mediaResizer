@@ -24,6 +24,11 @@ import os
 from PIL import Image
 import pyexiv2
 import subprocess
+from multiprocessing import Pool
+
+
+def unwrap_self(arg, **kwarg):
+    return MediaResizer.do_converstion(*arg, **kwarg)
 
 
 class MediaResizerException(Exception):
@@ -40,8 +45,9 @@ class MediaResizerException(Exception):
 class MediaResizer:
     _arguments = None
     _log_level = 'WARN'
-    _default_size = 800, 600
+    _default_size = 1920, 1080
     _folder = ''
+    _thread_list = []
 
     def __init__(self):
         """
@@ -138,7 +144,6 @@ class MediaResizer:
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE
             )
-            # handbrake.wait()
             out, err = handbrake.communicate()
             if handbrake.returncode or err:
                 logging.error('Error from Handbrake %s.' % err)
@@ -148,6 +153,22 @@ class MediaResizer:
             logging.error('OS Error: %s.' % ex)
         except IOError:
             logging.error('Cannot create new video for %s.' % video)
+
+    def do_converstion(self, medium):
+        print "Starting process for medium: %s." % medium
+        # Get mime type (I hate that it's called magic).
+        # TODO(jreuter): Can we pull mimetype from pyexiv2?
+        mime = magic.Magic(mime=True)
+        mime_type = mime.from_file(os.path.join(self._folder, medium))
+        # If it's an image, pass to the image resizer.
+        # TODO(jreuter): Make this smarter since we can't process all types
+        # of images.
+        if mime_type.startswith('image'):
+            self.resize_image(medium, mime_type)
+        else:
+            # TODO(jreuter): Queue videos and convert later.
+            self.convert_video(medium, mime_type)
+        print "Done processing medium: %s." % medium
 
     def main(self):
         """
@@ -168,23 +189,21 @@ class MediaResizer:
             logging.info('Ignoring dot folders.')
             exit()
 
+        size_string = str(self._default_size[0]) + \
+                          'x' + str(self._default_size[1])
+        new_folder = 'resized_' + size_string
+        directory = os.path.join(self._folder, new_folder)
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+
         # Get all files in the directory, but only files.
         files = [f for f in os.listdir(self._folder)
                  if os.path.isfile(os.path.join(self._folder, f))]
 
         # Loop through file list for processing.
-        for file in files:
-            # Get mime type (I hate that it's called magic).
-            # TODO(jreuter): Can we pull mimetype from pyexiv2?
-            mime = magic.Magic(mime=True)
-            mime_type = mime.from_file(os.path.join(self._folder, file))
-            # If it's an image, pass to the image resizer.
-            # TODO(jreuter): Make this smarter since we can't process all types
-            # of images.
-            if mime_type.startswith('image'):
-                self.resize_image(file, mime_type)
-            else:
-                self.convert_video(file, mime_type)
+        pool = Pool()
+        results = pool.map(unwrap_self, zip([self]*len(files), files))
+        print "Finished processing media."
 
 
 if __name__ == '__main__':
