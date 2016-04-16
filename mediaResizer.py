@@ -95,14 +95,20 @@ class MediaResizer:
             if not os.path.exists(directory):
                 os.makedirs(directory)
             outfile = os.path.join(directory,
-                                   name + '_' + size_string + extension)
+                                   name + '_' + size_string + '.JPG')
             logging.info('creating file for %s.' % outfile)
             im.thumbnail(self._default_size, Image.ANTIALIAS)
-            im.save(outfile, sub_type.upper())
+            im.save(outfile, 'jpeg')
             # TODO(jreuter): Split this out to a function.
             outfile_metadata = pyexiv2.ImageMetadata(outfile)
             outfile_metadata.read()
-            metadata.copy(outfile_metadata)
+            # We check for Tiff images.  If found, don't save comment data.
+            if metadata.mime_type == 'image/tiff':
+                # params: destination, exif=True, iptc=True,
+                # xmp=True, comment=True
+                metadata.copy(outfile_metadata, True, True, True, False)
+            else:
+                metadata.copy(outfile_metadata)
             outfile_metadata.write()
         except IOError:
             logging.error('Cannot create new image for %s.' % image)
