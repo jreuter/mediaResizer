@@ -95,10 +95,10 @@ class MediaResizer:
             if not os.path.exists(directory):
                 os.makedirs(directory)
             outfile = os.path.join(directory,
-                                   name + '_' + size_string + '.JPG') #extension)
+                                   name + '_' + size_string + '.JPG')
             logging.info('creating file for %s.' % outfile)
             im.thumbnail(self._default_size, Image.ANTIALIAS)
-            im.save(outfile, 'jpeg') #sub_type.upper())
+            im.save(outfile, 'jpeg')
             # TODO(jreuter): Split this out to a function.
             outfile_metadata = pyexiv2.ImageMetadata(outfile)
             outfile_metadata.read()
