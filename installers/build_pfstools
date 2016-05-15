@@ -608,3 +608,7 @@ Other commands:
   271  pfsinhdrgen hdrgen.txt | pfshdrcalibrate -b 16 -x  | pfsout pfs.hdr
   272  history
   273  history >> /home/jreuter/code/personal/mediaResizer/installers/build_pfstools 
+
+Even more....
+  345  apt-get install libmagick++-dev
+
