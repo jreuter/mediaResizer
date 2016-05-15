@@ -331,3 +331,280 @@
   331  ls
   332  history
   333  history > build_pfstools
+
+
+Other commands:
+
+    1  uname -a
+    2  apt-cache search kernel
+    3  apt-get install linux-tools-4.2.0-27-generic
+    4  apt-cache search kernel
+    5  uname -a
+    6  update-grub
+    7  vim /etc/default/grub
+    8  apt-get install vim
+    9  vim /etc/default/grub
+   10  update-grub
+   11  uname -a
+   12  apt-cache search kernel-image
+   13  apt-cache search kernel
+   14  apt-cache search linux-image
+   15  apt-get install linux-image-4.2.0-27-generic
+   16  apt-get update
+   17  apt-get install linux-image-4.2.0-27-generic
+   18  update-grub
+   19  reboot
+   20  apt-cache search linux-image
+   21  apt-get install linux-image-extra-4.2.0-27-generic
+   22  shutdown -h 0
+   23  cd
+   24  vim /etc/grub.d/40_custom 
+   25  update-grub
+   26  apt-cache search linux-image > images
+   27  vim images 
+   28  apt-cache search headers > headers
+   29  vim headers 
+   30  rm headers images 
+   31  ls
+   32  cd
+   33  exit
+   34  ls
+   35  exit
+   36  apt-get install skype
+   37  vim /etc/groups
+   38  vim /etc/group
+   39  cd /usr/bin/
+   40  ls
+   41  ls -l
+   42  cd /usr/local/bin/
+   43  ls
+   44  ls -l
+   45  cd /op
+   46  cd /opt
+   47  cd
+   48  ls
+   49  cd /opt
+   50  cd /
+   51  ls
+   52  ls -l
+   53  mkdir opt
+   54  ls
+   55  cd opt/
+   56  ls
+   57  cp /home/jreuter/Downloads/pycharm-community-5.0.4.tar.gz .
+   58  cp /home/jreuter/Downloads/ideaIC-15.0.3.tar.gz .
+   59  ls
+   60  tar xvf pycharm-community-5.0.4.tar.gz 
+   61  apt-get purge skype
+   62  ls
+   63  cd pycharm-community-5.0.4/
+   64  ls
+   65  cd bin/
+   66  ls
+   67  ls /usr/local/bin/
+   68  ln -s /opt/pycharm-community-5.0.4/bin/pycharm.sh /usr/local/bin/pycharm
+   69  ls
+   70  cd /usr/local/bin/
+   71  ls
+   72  cd /opt/
+   73  ls
+   74  tar xvf ideaIC-15.0.3.tar.gz 
+   75  cd /usr/local/bin/
+   76  ls
+   77  ln -s /opt/idea-IC-143.1821.5/bin/idea.sh idea
+   78  ls
+   79  ls -l
+   80  add-apt-repository ppa:webupsudo add-apt-repository ppa:webupd8team/java
+   81  sudo apt-get update
+   82  sudo apt-get install oracle-java7-installersudo add-apt-repository ppa:webupd8team/java
+   83  sudo apt-get update
+   84  sudo apt-get install oracle-java7-installersudo add-apt-repository ppa:webupd8team/java
+   85  sudo apt-get update
+   86  sudo apt-get install oracle-java7-installer
+   87  apt-get update
+   88  apt-get install oracle-java7-installer
+   89  sudo add-apt-repository ppa:webupd8team/java
+   90  apt-get update
+   91  apt-get install oracle-java7-installer
+   92  exit
+   93  apt-get install chrome
+   94  apt-cache search chrome
+   95  apt-cache search google
+   96  apt-get install sublimetext
+   97  apt-cache search sublime
+   98  apt-get install sublime-text
+   99  exit
+  100  apt-cache search bcmwl
+  101  apt-get install bcmwl-kernel-source
+  102  apt-get install hfsprogs
+  103  apt-get autoremove
+  104  fdisk -l
+  105  mkdir /media/mac
+  106  mount -t hfsplus -o force,rw /dev/sda3 /media/mac/
+  107  umount /media/mac
+  108  apt-get install gparted
+  109  mount -t hfsplus -o force,rw /dev/sda2 /media/mac/
+  110  man fdisk
+  111  fdisk -l
+  112  mount -t hfsplus -o force,rw /dev/sda2 /media/mac/d
+  113  mount -t hfsplus -o force,rw /dev/sda2 /media/mac/
+  114  apt-get install hfsutils
+  115  mount -t hfsplus -o force,rw /dev/sda2 /media/mac/
+  116  fdisk -l
+  117  man gdisk
+  118  gdisk -l
+  119  gdisk -l /dev/sda
+  120  mount -t hfsplus -o force,rw /dev/sda2 /media/mac/
+  121  apt-get install hfsplus
+  122  fdisk -l
+  123  mount -t hfsplus /dev/sda2 /dev/mapper/
+  124  gdisk -l
+  125  gdisk -l /dev/sda
+  126  mount -t hfsplus /dev/sda2 /media/mac/
+  127  dmesg
+  128  parted /dev/sda
+  129  mount -v -t hfsplus -o ro,loop,offset=209735680,sizelimit=456360951808 /dev/sda /media/mac/
+  130  mount -t hfsplus /dev/sda2 /media/mac/
+  131  reboot
+  132  gdisk -l
+  133  gdisk -l /dev/sda
+  134  fdisk -l
+  135  mount -t hfsplus /dev/sda2 /media/mac/
+  136  mount -t hfsplus -o force,rw /dev/sda2 /media/mac/
+  137  dmesg
+  138  fdisk -l
+  139  hfsplus --version
+  140  exit
+  141  apt-get update
+  142  apt-get upgrade
+  143  uname -a
+  144  aptitude search kernel
+  145  exit
+  146  apt-cache search kernel-image
+  147  apt-get search kernel-image
+  148  aptitude search kernel-image
+  149  aptitude search kernel
+  150  apt-cache search linux-kernel
+  151  apt-cache search linux-headers
+  152  uname -a
+  153  apt-get install linux-headers-4.2.0-30-generic
+  154  vim /var/lib/dkms/ndiswrapper/1.59/build/make.log 
+  155  apt-get update
+  156  apt-get upgrade
+  157  apt-get isntall linux-kernel-generic
+  158  apt-get install linux-headers-4.2.0-30-generic
+  159  apt-get install linux-image-4.2.0-30-generic 
+  160  apt-get install linux-headers-4.2.0-30-generic
+  161  exit
+  162  apt-get install krita
+  163  exit
+  164  apt-get install blender
+  165  exit
+  166  ps aux | grep handbrake
+  167  ps aux | grep media
+  168  kill 4905 5040 5041 5042 5043 5044 5045 5046 5047
+  169  ps aux | grep media
+  170  kill 5273
+  171  apt-get install exfat-utils
+  172  apt-get install exfat-fuse
+  173  apt-get update
+  174  apt-get upgrade
+  175  /sbin/rcvboxdrv setup
+  176  /sbin/rcvboxdrv
+  177  dmesg
+  178  /sbin/rcvboxdrv
+  179  apt-get purge virtualbox*
+  180  apt-get install linux-headers-generic build-essential dkms
+  181  uname -a
+  182  aptitude search linux-headers-
+  183  uname -a
+  184  apt-get install linux-headers-4.2.0-27-generic
+  185  vim /var/lib/dkms/ndiswrapper/1.59/build/make.log 
+  186  apt-get install virtualbox-dkms
+  187  apt-get install virtualbox
+  188  apt-get autoremove
+  189  exit
+  190  aptitude search skype
+  191  apt-get install skype
+  192  exit
+  193  apt-get install openvpn
+  194  ls
+  195  vim client.ovpn 
+  196  cd
+  197  exit
+  198  apt-get install dropbox
+  199  nautilus --quit
+  200  exit
+  201  aptitude search rdp
+  202  apt-get install remmina-plugin-rdp
+  203  apt-get install remmina-plugin-vnc
+  204  ifconfig
+  205  ping 10.20.3.216
+  206  exit
+  207  apt-cache showpkg linux-headers
+  208  uname -a
+  209  apt-get update
+  210  apt-cache showpkg linux-headers
+  211  apt-get install linux-headers-4.4.0-21-generic linux-headers-4.4.0-21 linux-image-4.4.0-21-generic
+  212  reboot
+  213  uname -r
+  214  dpkg --list | grep linux-image
+  215  apt-get install linux-image-extra-4.4.0-21-generic 
+  216  update-grub
+  217  reboot
+  218  apt-get install filezilla
+  219  apt-get install sshfs
+  220  apt-get install openexr
+  221  apt-get install imagemagick
+  222  apt-get install netpbm
+  223  apt-get install opengl
+  224  apt-get install glut
+  225  aptitude search glut
+  226  apt-get install freeglut3
+  227  aptitude search opengl
+  228  apt-get install libhugs-opengl-bundled
+  229  apt-get purge libhugs-opengl-bundled
+  230  aptitude search opencv
+  231  apt-get install libopencv-dev
+  232  aptitude search opengl-dev
+  233  aptitude search netpbm
+  234  apt-get install netpbm-dev
+  235  apt-get install libnetpbm10-dev
+  236  apt-get install imagemagick
+  237  aptitude search imagemagick
+  238  aptitude search opengl
+  239  apt-get install libqt5opengl5-dev
+  240  ls
+  241  apt-get search glut
+  242  aptitude search glut
+  243  aptitude search opengl
+  244  apt-get install libqt4-opengl-dev
+  245  aptitude search glut
+  246  apt-get install freeglut3-dev
+  247  aptitude search fftw
+  248  apt-get install libfftw3-dev
+  249  aptitude search matlab
+  250  apt-get install matlab-support-dev
+  251  sudo add-apt-repository --yes ppa:xqms/opencv-nonfree
+  252  apt-get update
+  253  apt-get install libopencv-nonfree-dev
+  254  apt-get purge matlab-support
+  255  dcraw2hdgen IMG_8752.CR2 | sed -e "s/CR2/tif/" > hdrgen.txt
+  256  dcraw2hdrgen IMG_8752.CR2 | sed -e "s/CR2/tif/" > hdrgen.txt
+  257  pfsinhdrgen hdrgen.txt | pfscalibrate -b 16 -x | pfsout pfs.hdr
+  258  pfsinhdrgen hdrgen.txt | pfshdrcalibrate -b 16 -x | pfsout pfs.hdr
+  259  pfsinhdrgen hdrgen.txt | pfshdrcalibrate -b 16 -x  | pfsout pfs.hdr
+  260  vim hdrgen.txt 
+  261  dcraw
+  262  apt-get install dcraw
+  263  pfsinhdrgen hdrgen.txt | pfshdrcalibrate -b 16 -x  | pfsout pfs.hdr
+  264  dcraw2hdrgen IMG_8752.CR2 | sed -e "s/CR2/tif/" > hdrgen.txt
+  265  pfsinhdrgen hdrgen.txt | pfshdrcalibrate -b 16 -x  | pfsout pfs.hdr
+  266  vim hdrgen.txt 
+  267  dcraw2hdrgen IMG_8752.CR2 > hdrgen.txt
+  268  pfsinhdrgen hdrgen.txt | pfshdrcalibrate -b 16 -x  | pfsout pfs.hdr
+  269  dcrawhdrgen IMG_875[2-4].CR2 > hdrgen.txt 
+  270  dcraw2hdrgen IMG_875[2-4].CR2 > hdrgen.txt 
+  271  pfsinhdrgen hdrgen.txt | pfshdrcalibrate -b 16 -x  | pfsout pfs.hdr
+  272  history
+  273  history >> /home/jreuter/code/personal/mediaResizer/installers/build_pfstools 
