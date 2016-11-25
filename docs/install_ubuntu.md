@@ -4,7 +4,7 @@ __Tested on 12.04 LTS version of Linux Mint__
 
 1.  Install PIP:
 
-        # sudo apt-get install python-pip
+        # sudo apt-get install python-pip python-setuptools
 
 2.  Install PIL (if needed - I didn't need this on the latest machine.):
 
