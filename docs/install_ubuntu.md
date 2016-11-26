@@ -1,19 +1,12 @@
 # Installation steps for Ubuntu
 
-__Tested on 12.04 LTS version of Linux Mint__
+__Tested on 12.04, 14.04, 16.40 versions of Ubuntu__
 
-1.  Install PIP:
+1.  Install PIP and other dependencies:
 
-        # sudo apt-get install python-pip python-setuptools
+        # sudo apt-get install python-pip python-setuptools python-pyexiv2 python-imaging
 
-2.  Install PIL (if needed - I didn't need this on the latest machine.):
-
-        # pip install PIL
-
-3.  Install python-magic:
+2.  Install python-magic:
 
         # sudo pip install python-magic
 
-4.  Install pyexiv2 for EXIF data:
-
-        # sudo apt-get install python-pyexiv2
