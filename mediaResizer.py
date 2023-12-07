@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # encoding: utf-8
 # Copyright 2014-2015 Jarrod Reuter
 
@@ -22,7 +22,9 @@ import logging
 import magic
 import os
 from PIL import Image
-import pyexiv2
+import gi
+gi.require_version('GExiv2', '0.10')
+from gi.repository.GExiv2 import Metadata
 import subprocess
 from multiprocessing import Pool
 
@@ -83,8 +85,10 @@ class MediaResizer:
             full_path = os.path.join(self._folder, image)
             im = Image.open(full_path)
             # TODO(jreuter): Split this to a function.
-            metadata = pyexiv2.ImageMetadata(full_path)
-            metadata.read()
+            # metadata = pyexiv2.ImageMetadata(full_path)
+            metadata = Metadata(full_path)
+            # metadata.read()
+            # print(metadata)
             name, extension = os.path.splitext(image)
             sub_type = mime.split('/')[1]
             # TODO(jreuter): Store this in a variable to be re-used.
@@ -100,16 +104,23 @@ class MediaResizer:
             im.thumbnail(self._default_size, Image.ANTIALIAS)
             im.save(outfile, 'jpeg')
             # TODO(jreuter): Split this out to a function.
-            outfile_metadata = pyexiv2.ImageMetadata(outfile)
-            outfile_metadata.read()
+            # outfile_metadata = pyexiv2.ImageMetadata(outfile)
+            outfile_metadata = Metadata(outfile)
+            # outfile_metadata.read()
             # We check for Tiff images.  If found, don't save comment data.
-            if metadata.mime_type == 'image/tiff':
+            if metadata.get_mime_type() == 'image/tiff':
                 # params: destination, exif=True, iptc=True,
                 # xmp=True, comment=True
-                metadata.copy(outfile_metadata, True, True, True, False)
+                # metadata.copy(outfile_metadata, True, True, True, False)
+                # save all exif data of orinal image to resized
+                for tag in metadata.get_exif_tags():
+                    print("setting tag {} in file {}.".format(tag, outfile))
+                    outfile_metadata[tag] = metadata[tag]
             else:
-                metadata.copy(outfile_metadata)
-            outfile_metadata.write()
+                for tag in metadata.get_exif_tags():
+                    print("setting tag {} in file {}.".format(tag, outfile))
+                    outfile_metadata[tag] = metadata[tag]
+            outfile_metadata.save_file(outfile)
         except IOError:
             logging.error('Cannot create new image for %s.' % image)
 
@@ -161,7 +172,7 @@ class MediaResizer:
             logging.error('Cannot create new video for %s.' % video)
 
     def do_converstion(self, medium):
-        print "Starting process for medium: %s." % medium
+        print("Starting process for medium: %s." % medium)
         # Get mime type (I hate that it's called magic).
         # TODO(jreuter): Can we pull mimetype from pyexiv2?
         mime = magic.Magic(mime=True)
@@ -169,12 +180,15 @@ class MediaResizer:
         # If it's an image, pass to the image resizer.
         # TODO(jreuter): Make this smarter since we can't process all types
         # of images.
+        print("We are comparing this mime type {} for file {}".format(mime_type, medium))
         if mime_type.startswith('image'):
             self.resize_image(medium, mime_type)
-        else:
+        elif mime_type.startswith('video'):
             # TODO(jreuter): Queue videos and convert later.
             self.convert_video(medium, mime_type)
-        print "Done processing medium: %s." % medium
+        elif mime_type == 'application/octet-stream':
+            print("Not processing file {}.".format(medium))
+        print("Done processing medium: %s." % medium)
 
     def main(self):
         """
@@ -208,8 +222,8 @@ class MediaResizer:
 
         # Loop through file list for processing.
         pool = Pool()
-        results = pool.map(unwrap_self, zip([self]*len(files), files))
-        print "Finished processing media."
+        results = pool.map(unwrap_self, list(zip([self]*len(files), files)))
+        print("Finished processing media.")
 
 
 if __name__ == '__main__':
