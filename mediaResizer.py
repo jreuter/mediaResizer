@@ -17,6 +17,8 @@ Options:
     -v              Verbose output (INFO level).
     --debug         Very Verbose output (DEBUG level).
 """
+import multiprocessing
+
 from docopt import docopt
 import logging
 import magic
@@ -27,7 +29,7 @@ import gi
 gi.require_version('GExiv2', '0.10')
 from gi.repository.GExiv2 import Metadata
 import subprocess
-from multiprocessing import Pool, cpu_count
+from multiprocessing import Pool, cpu_count, Queue
 
 
 def limit_cpu():
@@ -59,6 +61,7 @@ class MediaResizer:
     _default_size = 1920, 1080
     _folder = ''
     _thread_list = []
+    _video_queue = multiprocessing.Queue()
 
     def __init__(self):
         """
