@@ -96,6 +96,7 @@ class MediaResizer:
             # TODO(jreuter): Split this to a function.
             # metadata = pyexiv2.ImageMetadata(full_path)
             metadata = Metadata(full_path)
+            stinfo = os.stat(full_path)
             # metadata.read()
             # print(metadata)
             name, extension = os.path.splitext(image)
@@ -123,13 +124,14 @@ class MediaResizer:
                 # metadata.copy(outfile_metadata, True, True, True, False)
                 # save all exif data of orinal image to resized
                 for tag in metadata.get_exif_tags():
-                    print("setting tag {} in file {}.".format(tag, outfile))
+                    logging.info("setting tag {} in file {}.".format(tag, outfile))
                     outfile_metadata[tag] = metadata[tag]
             else:
                 for tag in metadata.get_exif_tags():
-                    print("setting tag {} in file {}.".format(tag, outfile))
+                    logging.info("setting tag {} in file {}.".format(tag, outfile))
                     outfile_metadata[tag] = metadata[tag]
             outfile_metadata.save_file(outfile)
+            os.utime(outfile, (stinfo.st_atime, stinfo.st_mtime))
         except IOError:
             logging.error('Cannot create new image for %s.' % image)
 
@@ -182,6 +184,7 @@ class MediaResizer:
             logging.error('OS Error: %s.' % ex)
         except IOError:
             logging.error('Cannot create new video for %s.' % video)
+        return destination_file
 
     def do_converstion(self, medium):
         print("Starting process for medium: %s." % medium)
@@ -197,7 +200,11 @@ class MediaResizer:
             self.resize_image(medium, mime_type)
         elif mime_type.startswith('video'):
             # TODO(jreuter): Queue videos and convert later.
-            self.convert_video(medium, mime_type)
+            # full_path = os.path.join(self._folder, medium)
+            # stinfo = os.stat(full_path)
+            finished_file = self.convert_video(medium, mime_type)
+            print("File results for video : %s" % finished_file)
+            # os.utime(finished_file, (stinfo.st_atime, stinfo.st_mtime))
         elif mime_type == 'application/octet-stream':
             print("Not processing file {}.".format(medium))
         print("Done processing medium: %s." % medium)
@@ -235,7 +242,7 @@ class MediaResizer:
         # Loop through file list for processing.
         pool = Pool(max(cpu_count()-2, 1), limit_cpu)
         results = pool.map(unwrap_self, list(zip([self]*len(files), files)))
-        print("Finished processing media.")
+        print("Finished processing media. %s", results)
 
 
 if __name__ == '__main__':
