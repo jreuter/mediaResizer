@@ -21,12 +21,21 @@ from docopt import docopt
 import logging
 import magic
 import os
+import psutil
 from PIL import Image
 import gi
 gi.require_version('GExiv2', '0.10')
 from gi.repository.GExiv2 import Metadata
 import subprocess
-from multiprocessing import Pool
+from multiprocessing import Pool, cpu_count
+
+
+def limit_cpu():
+    "is called at every process start to lower the process priority."
+    p = psutil.Process(os.getpid())
+    # set to lowest priority, this is windows only, on Unix use ps.nice(19)
+    # p.nice(psutil.BELOW_NORMAL_PRIORITY_CLASS)
+    p.nice(19)
 
 
 def unwrap_self(arg, **kwarg):
@@ -141,11 +150,14 @@ class MediaResizer:
             new_folder = 'resized_' + size_string
             directory = os.path.join(self._folder, new_folder)
             destination_file = os.path.join(directory, name + '.m4v')
+            cores_to_use = max(cpu_count()-2, 1)
+            thread_count = f"threads={cores_to_use}"
             if not os.path.exists(directory):
                 os.makedirs(directory)
             handbrake_command = [
                 os.path.join(os.path.sep, 'usr', 'bin', 'HandBrakeCLI'),
                 '-v',
+                '-x', thread_count,
                 '-e', 'x264',
                 '--h264-profile', 'main',
                 # '--h264-level', '4',
@@ -221,7 +233,7 @@ class MediaResizer:
                  if os.path.isfile(os.path.join(self._folder, f))]
 
         # Loop through file list for processing.
-        pool = Pool()
+        pool = Pool(max(cpu_count()-2, 1), limit_cpu)
         results = pool.map(unwrap_self, list(zip([self]*len(files), files)))
         print("Finished processing media.")
 
