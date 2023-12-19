@@ -165,14 +165,7 @@ class MediaResizer:
         :param mime: MimeType string of file.
         """
         try:
-            full_path = os.path.join(self._folder, video)
-            name, extension = os.path.splitext(video)
-            # TODO(jreuter): Store this in a variable to be re-used.
-            # size_string = str(self._default_size[0]) + \
-            #               'x' + str(self._default_size[1])
-            # new_folder = 'resized_' + size_string
-            # directory = os.path.join(self._folder, new_folder)
-            destination_file = os.path.join(self._new_folder, name + '_compressed' + '.m4v')
+            print(f"{bcolors.OKCYAN}Processing file {video['input']} now.{bcolors.ENDC}")
             cores_to_use = max(cpu_count()-2, 1)
             thread_count = f"threads={cores_to_use}"
             if not os.path.exists(self._new_folder):
@@ -182,30 +175,33 @@ class MediaResizer:
                 '-v',
                 '-x', thread_count,
                 '-e', 'x264',
+                '-t', '1',
                 '--h264-profile', 'main',
-                # '--h264-level', '4',
                 '--x264-preset', 'slower',
                 '--quality', '21',
-                '-i', full_path,
-                '-o', destination_file
+                '-i', video['full_path'],
+                '-o', video['output']
             ]
-            logging.info('cmd is %s' % ' '.join(handbrake_command))
-            logging.info('Creating file %s.' % destination_file)
+            logging.info(f"cmd is {handbrake_command}")
+            logging.debug(f"Creating file {video['output']}")
             handbrake = subprocess.Popen(
                 handbrake_command,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE
             )
             out, err = handbrake.communicate()
-            if handbrake.returncode or err:
-                logging.error('Error from Handbrake %s.' % err)
-                return
-            logging.info('Done with video: %s.' % destination_file)
+            # if handbrake.returncode or err:
+                # Handbrake is returning errors that aren't really errors and I can't figure out an option to stop it.
+                # logging.error('Error from Handbrake %s.' % err)
+                # return
+            logging.info(f"Done with video: {video['output']}")
+            # logging.info('Done with video: %s.' % video['output'])
         except OSError as ex:
-            logging.error('OS Error: %s.' % ex)
+            logging.error(f"{bcolors.FAIL}OS Error: {ex}{bcolors.ENDC}")
+            # logging.error('OS Error: %s.' % ex)
         except IOError:
-            logging.error('Cannot create new video for %s.' % video)
-        return destination_file
+            logging.error(f"{bcolors.FAIL}Cannot create new video for {video['input']}{bcolors.ENDC}")
+            # logging.error('Cannot create new video for %s.' % video['input'])
 
     def do_converstion(self, medium):
         print("Starting process for medium: %s." % medium)
@@ -251,7 +247,6 @@ class MediaResizer:
 
         self._size_string = str(self._default_size[0]) + \
                           'x' + str(self._default_size[1])
-        # new_folder = 'resized_' + size_string
         self._new_folder = os.path.join(self._folder, 'resized_' + self._size_string)
         if not os.path.exists(self._new_folder):
             os.makedirs(self._new_folder)
@@ -259,8 +254,6 @@ class MediaResizer:
         # Get all files in the directory, but only files.
         files = [f for f in os.listdir(self._folder)
                  if os.path.isfile(os.path.join(self._folder, f))]
-
-        print("Files: ", files)
 
         videos = []     # os.path.join(self._new_folder, name + '_compressed' + '.m4v')
         photos = []     # os.path.join(self._new_folder, name + '_' + self._size_string + '.JPG')
@@ -302,6 +295,15 @@ class MediaResizer:
             stinfo = os.stat(photo['output'])
             os.utime(photo['output'], (stinfo.st_atime, photo['timestamp_modified']))
 
+        print(f"\n{bcolors.UNDERLINE}{bcolors.OKGREEN}Processing Videos.{bcolors.ENDC}")
+        # Loop through file list for processing.
+        pool = Pool(max(cpu_count() - 2, 1), limit_cpu)
+        results = pool.map(unwrap_self_videos, list(zip([self] * len(videos), videos)))
+
+        print(f"\n{bcolors.UNDERLINE}{bcolors.OKGREEN}Adjusting video timestamps.{bcolors.ENDC}")
+        for video in videos:
+            stinfo = os.stat(video['output'])
+            os.utime(video['output'], (stinfo.st_atime, video['timestamp_modified']))
 
         print(f"{bcolors.OKGREEN}Finished processing media.{bcolors.ENDC}")
 
