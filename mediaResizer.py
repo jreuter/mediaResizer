@@ -42,18 +42,6 @@ def unwrap_self_photos(arg, **kwarg):
     return MediaResizer.resize_image(*arg, **kwarg)
 
 
-# def unwrap_self_videos(arg, **kwarg):
-#     return MediaResizer.convert_video(arg, **kwarg)
-
-
-# def consume_video(arg, queue):
-#     while True:
-#         item = queue.get()
-#         if item is None:
-#             break
-#         MediaResizer.convert_video(*arg, item)
-
-
 class bcolors:
     HEADER = '\033[95m'
     OKBLUE = '\033[94m'
@@ -120,41 +108,29 @@ class MediaResizer:
         one.  This will need updated when the ability to output to a different
         format from the input is added.
 
-        :param image: Full path of image to be processed.
-        :param mime: Mime type of original image (same as new image for now).
+        :param photo: Dict with the following fields:
+                    "input": filename,
+                    "full_path": source full_path,
+                    "mime_type": source mime_type,
+                    "timestamp_accessed": source stinfo.st_atime,
+                    "timestamp_modified": source stinfo.st_mtime,
+                    "output": output file with full path
         """
         try:
             print(f"{bcolors.OKCYAN}Processing file {photo['input']} now.{bcolors.ENDC}")
-            # full_path = photo.full_path
             im = Image.open(photo['full_path'])
-            # TODO(jreuter): Split this to a function.
-            # metadata = pyexiv2.ImageMetadata(full_path)
             metadata = Metadata(photo['full_path'])
-            # stinfo = os.stat(full_path)
-            # metadata.read()
-            # print(metadata)
-            # name, extension = os.path.splitext(image)
-            # sub_type = photo.mime_type.split('/')[1]
-            # TODO(jreuter): Store this in a variable to be re-used.
-            # size_string = str(self._default_size[0]) + \
-            #               'x' + str(self._default_size[1])
-            # new_folder = 'resized_' + size_string
-            # directory = os.path.join(self._folder, new_folder)
             if not os.path.exists(self._new_folder):
                 os.makedirs(self._new_folder)
             outfile = photo['output']
-            # outfile = os.path.join(self._new_folder,
-            #                        name + '_' + self._size_string + '.JPG')
-            # logging.info('creating file for %s.' % outfile)
             logging.info(f"{bcolors.OKGREEN}Creating file for {outfile}{bcolors.ENDC}")
             im.thumbnail(self._default_size, Image.ANTIALIAS)
             im.save(outfile, 'jpeg')
             # TODO(jreuter): Split this out to a function.
-            # outfile_metadata = pyexiv2.ImageMetadata(outfile)
             outfile_metadata = Metadata(outfile)
-            # outfile_metadata.read()
             # We check for Tiff images.  If found, don't save comment data.
             if metadata.get_mime_type() == 'image/tiff':
+                # TODO (jreuter): See if we really need this.  I can't remember what we did differently with TIFF.
                 # params: destination, exif=True, iptc=True,
                 # xmp=True, comment=True
                 # metadata.copy(outfile_metadata, True, True, True, False)
@@ -167,18 +143,21 @@ class MediaResizer:
                     logging.info("setting tag {} in file {}.".format(tag, outfile))
                     outfile_metadata[tag] = metadata[tag]
             outfile_metadata.save_file(outfile)
-            # os.utime(outfile, (stinfo.st_atime, stinfo.st_mtime))
         except IOError:
             logging.error(f"{bcolors.FAIL}Cannot create new image for {photo['input']}{bcolors.ENDC}")
-            # logging.error('Cannot create new image for %s.' % photo['input'])
 
     def convert_video(self, video):
         """
         Converts one video using HandBrakeCLI.  This currently only works on
         linux since it builds a full path to the binary in /usr/bin/.
 
-        :param video: Video file to convert.
-        :param mime: MimeType string of file.
+        :param video: Dict with the following fields:
+                    "input": filename,
+                    "full_path": source full_path,
+                    "mime_type": source mime_type,
+                    "timestamp_accessed": source stinfo.st_atime,
+                    "timestamp_modified": source stinfo.st_mtime,
+                    "output": output file with full path
         """
         try:
             print(f"{bcolors.OKCYAN}Processing file {video['input']} now.{bcolors.ENDC}")
@@ -206,18 +185,16 @@ class MediaResizer:
                 stderr=subprocess.PIPE
             )
             out, err = handbrake.communicate()
+            # TODO (jreuter): See if there's a way to add this back and not get errors that aren't really errors.
             # if handbrake.returncode or err:
                 # Handbrake is returning errors that aren't really errors and I can't figure out an option to stop it.
                 # logging.error('Error from Handbrake %s.' % err)
                 # return
             logging.info(f"Done with video: {video['output']}")
-            # logging.info('Done with video: %s.' % video['output'])
         except OSError as ex:
             logging.error(f"{bcolors.FAIL}OS Error: {ex}{bcolors.ENDC}")
-            # logging.error('OS Error: %s.' % ex)
         except IOError:
             logging.error(f"{bcolors.FAIL}Cannot create new video for {video['input']}{bcolors.ENDC}")
-            # logging.error('Cannot create new video for %s.' % video['input'])
 
     def do_converstion(self, files):
         videos = []  # os.path.join(self._new_folder, name + '_compressed' + '.m4v')
@@ -269,8 +246,6 @@ class MediaResizer:
         video_process = Process(target=self.consume_video, args=(queue,))
         video_process.start()
         video_process.join()
-        # pool = Pool(max(cpu_count() - 2, 1), limit_cpu)
-        # results = pool.map(unwrap_self_videos, list(zip([self] * len(videos), videos)))
 
         print(f"\n{bcolors.UNDERLINE}{bcolors.OKGREEN}Adjusting video timestamps.{bcolors.ENDC}")
         for video in videos:
