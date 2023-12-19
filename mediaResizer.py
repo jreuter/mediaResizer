@@ -42,6 +42,18 @@ def unwrap_self(arg, **kwarg):
     return MediaResizer.do_converstion(*arg, **kwarg)
 
 
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKCYAN = '\033[96m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+
+
 class MediaResizerException(Exception):
     """
     Exception handling for the MediaResizer.
@@ -57,7 +69,9 @@ class MediaResizer:
     _arguments = None
     _log_level = 'WARN'
     _default_size = 1920, 1080
+    _size_string = ''
     _folder = ''
+    _new_folder = ''
     _thread_list = []
 
     def __init__(self):
@@ -102,14 +116,14 @@ class MediaResizer:
             name, extension = os.path.splitext(image)
             sub_type = mime.split('/')[1]
             # TODO(jreuter): Store this in a variable to be re-used.
-            size_string = str(self._default_size[0]) + \
-                          'x' + str(self._default_size[1])
-            new_folder = 'resized_' + size_string
-            directory = os.path.join(self._folder, new_folder)
-            if not os.path.exists(directory):
-                os.makedirs(directory)
-            outfile = os.path.join(directory,
-                                   name + '_' + size_string + '.JPG')
+            # size_string = str(self._default_size[0]) + \
+            #               'x' + str(self._default_size[1])
+            # new_folder = 'resized_' + size_string
+            # directory = os.path.join(self._folder, new_folder)
+            if not os.path.exists(self._new_folder):
+                os.makedirs(self._new_folder)
+            outfile = os.path.join(self._new_folder,
+                                   name + '_' + self._size_string + '.JPG')
             logging.info('creating file for %s.' % outfile)
             im.thumbnail(self._default_size, Image.ANTIALIAS)
             im.save(outfile, 'jpeg')
@@ -147,15 +161,15 @@ class MediaResizer:
             full_path = os.path.join(self._folder, video)
             name, extension = os.path.splitext(video)
             # TODO(jreuter): Store this in a variable to be re-used.
-            size_string = str(self._default_size[0]) + \
-                          'x' + str(self._default_size[1])
-            new_folder = 'resized_' + size_string
-            directory = os.path.join(self._folder, new_folder)
-            destination_file = os.path.join(directory, name + '.m4v')
+            # size_string = str(self._default_size[0]) + \
+            #               'x' + str(self._default_size[1])
+            # new_folder = 'resized_' + size_string
+            # directory = os.path.join(self._folder, new_folder)
+            destination_file = os.path.join(self._new_folder, name + '_compressed' + '.m4v')
             cores_to_use = max(cpu_count()-2, 1)
             thread_count = f"threads={cores_to_use}"
-            if not os.path.exists(directory):
-                os.makedirs(directory)
+            if not os.path.exists(self._new_folder):
+                os.makedirs(self._new_folder)
             handbrake_command = [
                 os.path.join(os.path.sep, 'usr', 'bin', 'HandBrakeCLI'),
                 '-v',
@@ -220,29 +234,41 @@ class MediaResizer:
 
         # Make sure it's a folder before processing.
         if os.path.isfile(self._folder):
-            logging.error('Program only handles folders.')
+            logging.error(f"{bcolors.WARNING}Program only handles folders.{bcolors.ENDC}")
             exit(1)
 
         # Make sure it's not a dot folder (may be removed later).
         if os.path.basename(self._folder).startswith('.'):
-            logging.info('Ignoring dot folders.')
+            logging.info(f"{bcolors.WARNING}Ignoring dot folders.{bcolors.ENDC}")
             exit()
 
-        size_string = str(self._default_size[0]) + \
+        self._size_string = str(self._default_size[0]) + \
                           'x' + str(self._default_size[1])
-        new_folder = 'resized_' + size_string
-        directory = os.path.join(self._folder, new_folder)
-        if not os.path.exists(directory):
-            os.makedirs(directory)
+        # new_folder = 'resized_' + size_string
+        self._new_folder = os.path.join(self._folder, 'resized_' + self._size_string)
+        if not os.path.exists(self._new_folder):
+            os.makedirs(self._new_folder)
 
         # Get all files in the directory, but only files.
         files = [f for f in os.listdir(self._folder)
                  if os.path.isfile(os.path.join(self._folder, f))]
+        #
+        # videos = []
+        # photos = []
+        # for file in files:
+        #     # TODO(jreuter): Can we pull mimetype from pyexiv2?
+        #     mime = magic.Magic(mime=True)
+        #     mime_type = mime.from_file(os.path.join(self._folder, file))
+        #     if mime_type.startswith('image'):
+        #         photos.append({
+        #             input: file,
+        #
+        #         })
 
         # Loop through file list for processing.
         pool = Pool(max(cpu_count()-2, 1), limit_cpu)
         results = pool.map(unwrap_self, list(zip([self]*len(files), files)))
-        print("Finished processing media. %s", results)
+        print(f"{bcolors.OKGREEN}Finished processing media. %s{bcolors.ENDC}", results)
 
 
 if __name__ == '__main__':
