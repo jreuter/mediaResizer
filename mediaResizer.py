@@ -27,7 +27,7 @@ import gi
 gi.require_version('GExiv2', '0.10')
 from gi.repository.GExiv2 import Metadata
 import subprocess
-from multiprocessing import Pool, cpu_count
+from multiprocessing import Pool, cpu_count, Queue, Process
 
 
 def limit_cpu():
@@ -42,8 +42,17 @@ def unwrap_self_photos(arg, **kwarg):
     return MediaResizer.resize_image(*arg, **kwarg)
 
 
-def unwrap_self_videos(arg, **kwarg):
-    return MediaResizer.convert_video(*arg, **kwarg)
+# def unwrap_self_videos(arg, **kwarg):
+#     return MediaResizer.convert_video(arg, **kwarg)
+
+
+# def consume_video(arg, queue):
+#     while True:
+#         item = queue.get()
+#         if item is None:
+#             break
+#         MediaResizer.convert_video(*arg, item)
+
 
 class bcolors:
     HEADER = '\033[95m'
@@ -96,6 +105,13 @@ class MediaResizer:
             self._log_level = logging.ERROR
         logging.basicConfig(level=self._log_level,
                             format='%(asctime)s %(message)s')
+
+    def consume_video(self, queue):
+        while True:
+            item = queue.get()
+            if item is None:
+                break
+            self.convert_video(item)
 
     def resize_image(self, photo):
         """
@@ -246,8 +262,15 @@ class MediaResizer:
 
         print(f"\n{bcolors.UNDERLINE}{bcolors.OKGREEN}Processing Videos.{bcolors.ENDC}")
         # Loop through file list for processing.
-        pool = Pool(max(cpu_count() - 2, 1), limit_cpu)
-        results = pool.map(unwrap_self_videos, list(zip([self] * len(videos), videos)))
+        queue = Queue()
+        for video in videos:
+            queue.put(video)
+        queue.put(None)
+        video_process = Process(target=self.consume_video, args=(queue,))
+        video_process.start()
+        video_process.join()
+        # pool = Pool(max(cpu_count() - 2, 1), limit_cpu)
+        # results = pool.map(unwrap_self_videos, list(zip([self] * len(videos), videos)))
 
         print(f"\n{bcolors.UNDERLINE}{bcolors.OKGREEN}Adjusting video timestamps.{bcolors.ENDC}")
         for video in videos:
