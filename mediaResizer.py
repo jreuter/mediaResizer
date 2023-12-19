@@ -203,60 +203,9 @@ class MediaResizer:
             logging.error(f"{bcolors.FAIL}Cannot create new video for {video['input']}{bcolors.ENDC}")
             # logging.error('Cannot create new video for %s.' % video['input'])
 
-    def do_converstion(self, medium):
-        print("Starting process for medium: %s." % medium)
-        # Get mime type (I hate that it's called magic).
-        # TODO(jreuter): Can we pull mimetype from pyexiv2?
-        mime = magic.Magic(mime=True)
-        mime_type = mime.from_file(os.path.join(self._folder, medium))
-        # If it's an image, pass to the image resizer.
-        # TODO(jreuter): Make this smarter since we can't process all types
-        # of images.
-        print("We are comparing this mime type {} for file {}".format(mime_type, medium))
-        if mime_type.startswith('image'):
-            self.resize_image(medium, mime_type)
-        elif mime_type.startswith('video'):
-            # TODO(jreuter): Queue videos and convert later.
-            # full_path = os.path.join(self._folder, medium)
-            # stinfo = os.stat(full_path)
-            finished_file = self.convert_video(medium, mime_type)
-            print("File results for video : %s" % finished_file)
-            # os.utime(finished_file, (stinfo.st_atime, stinfo.st_mtime))
-        elif mime_type == 'application/octet-stream':
-            print("Not processing file {}.".format(medium))
-        print("Done processing medium: %s." % medium)
-
-    def main(self):
-        """
-        This does some sanity checks on the input.  Then loops through all the
-        files in the directory, processing each one that has a mime type that
-        is supported.
-        """
-        logging.info('Directory added: %s', self._arguments['<folder>'])
-        self._folder = self._arguments['<folder>']
-
-        # Make sure it's a folder before processing.
-        if os.path.isfile(self._folder):
-            logging.error(f"{bcolors.WARNING}Program only handles folders.{bcolors.ENDC}")
-            exit(1)
-
-        # Make sure it's not a dot folder (may be removed later).
-        if os.path.basename(self._folder).startswith('.'):
-            logging.info(f"{bcolors.WARNING}Ignoring dot folders.{bcolors.ENDC}")
-            exit()
-
-        self._size_string = str(self._default_size[0]) + \
-                          'x' + str(self._default_size[1])
-        self._new_folder = os.path.join(self._folder, 'resized_' + self._size_string)
-        if not os.path.exists(self._new_folder):
-            os.makedirs(self._new_folder)
-
-        # Get all files in the directory, but only files.
-        files = [f for f in os.listdir(self._folder)
-                 if os.path.isfile(os.path.join(self._folder, f))]
-
-        videos = []     # os.path.join(self._new_folder, name + '_compressed' + '.m4v')
-        photos = []     # os.path.join(self._new_folder, name + '_' + self._size_string + '.JPG')
+    def do_converstion(self, files):
+        videos = []  # os.path.join(self._new_folder, name + '_compressed' + '.m4v')
+        photos = []  # os.path.join(self._new_folder, name + '_' + self._size_string + '.JPG')
         for file in files:
             name, extension = os.path.splitext(file)
             source_full_path = os.path.join(self._folder, file)
@@ -287,8 +236,8 @@ class MediaResizer:
 
         print(f"\n{bcolors.UNDERLINE}{bcolors.OKGREEN}Processing Photos.{bcolors.ENDC}")
         # Loop through file list for processing.
-        pool = Pool(max(cpu_count()-2, 1), limit_cpu)
-        results = pool.map(unwrap_self_photos, list(zip([self]*len(photos), photos)))
+        pool = Pool(max(cpu_count() - 2, 1), limit_cpu)
+        results = pool.map(unwrap_self_photos, list(zip([self] * len(photos), photos)))
 
         print(f"\n{bcolors.UNDERLINE}{bcolors.OKGREEN}Adjusting photo timestamps.{bcolors.ENDC}")
         for photo in photos:
@@ -304,6 +253,87 @@ class MediaResizer:
         for video in videos:
             stinfo = os.stat(video['output'])
             os.utime(video['output'], (stinfo.st_atime, video['timestamp_modified']))
+
+    def main(self):
+        """
+        This does some sanity checks on the input.  Then loops through all the
+        files in the directory, processing each one that has a mime type that
+        is supported.
+        """
+        logging.info('Directory added: %s', self._arguments['<folder>'])
+        self._folder = self._arguments['<folder>']
+
+        # Make sure it's a folder before processing.
+        if os.path.isfile(self._folder):
+            logging.error(f"{bcolors.WARNING}Program only handles folders.{bcolors.ENDC}")
+            exit(1)
+
+        # Make sure it's not a dot folder (may be removed later).
+        if os.path.basename(self._folder).startswith('.'):
+            logging.info(f"{bcolors.WARNING}Ignoring dot folders.{bcolors.ENDC}")
+            exit()
+
+        self._size_string = str(self._default_size[0]) + \
+                          'x' + str(self._default_size[1])
+        self._new_folder = os.path.join(self._folder, 'resized_' + self._size_string)
+        if not os.path.exists(self._new_folder):
+            os.makedirs(self._new_folder)
+
+        # Get all files in the directory, but only files.
+        files = [f for f in os.listdir(self._folder)
+                 if os.path.isfile(os.path.join(self._folder, f))]
+
+        self.do_converstion(files)
+
+        # videos = []     # os.path.join(self._new_folder, name + '_compressed' + '.m4v')
+        # photos = []     # os.path.join(self._new_folder, name + '_' + self._size_string + '.JPG')
+        # for file in files:
+        #     name, extension = os.path.splitext(file)
+        #     source_full_path = os.path.join(self._folder, file)
+        #     # TODO(jreuter): Can we pull mimetype from pyexiv2?
+        #     mime = magic.Magic(mime=True)
+        #     mime_type = mime.from_file(source_full_path)
+        #     stinfo = os.stat(source_full_path)
+        #     if mime_type.startswith('image'):
+        #         photos.append({
+        #             "input": file,
+        #             "full_path": source_full_path,
+        #             "mime_type": mime_type,
+        #             "timestamp_accessed": stinfo.st_atime,
+        #             "timestamp_modified": stinfo.st_mtime,
+        #             "output": os.path.join(self._new_folder, name + '_' + self._size_string + '.JPG')
+        #         })
+        #     elif mime_type.startswith('video'):
+        #         videos.append({
+        #             "input": file,
+        #             "full_path": source_full_path,
+        #             "mime_type": mime_type,
+        #             "timestamp_accessed": stinfo.st_atime,
+        #             "timestamp_modified": stinfo.st_mtime,
+        #             "output": os.path.join(self._new_folder, name + '_compressed' + '.m4v')
+        #         })
+        #     elif mime_type == 'application/octet-stream':
+        #         print(f"{bcolors.WARNING}Not processing file {file}.{bcolors.ENDC}")
+        #
+        # print(f"\n{bcolors.UNDERLINE}{bcolors.OKGREEN}Processing Photos.{bcolors.ENDC}")
+        # # Loop through file list for processing.
+        # pool = Pool(max(cpu_count()-2, 1), limit_cpu)
+        # results = pool.map(unwrap_self_photos, list(zip([self]*len(photos), photos)))
+        #
+        # print(f"\n{bcolors.UNDERLINE}{bcolors.OKGREEN}Adjusting photo timestamps.{bcolors.ENDC}")
+        # for photo in photos:
+        #     stinfo = os.stat(photo['output'])
+        #     os.utime(photo['output'], (stinfo.st_atime, photo['timestamp_modified']))
+        #
+        # print(f"\n{bcolors.UNDERLINE}{bcolors.OKGREEN}Processing Videos.{bcolors.ENDC}")
+        # # Loop through file list for processing.
+        # pool = Pool(max(cpu_count() - 2, 1), limit_cpu)
+        # results = pool.map(unwrap_self_videos, list(zip([self] * len(videos), videos)))
+        #
+        # print(f"\n{bcolors.UNDERLINE}{bcolors.OKGREEN}Adjusting video timestamps.{bcolors.ENDC}")
+        # for video in videos:
+        #     stinfo = os.stat(video['output'])
+        #     os.utime(video['output'], (stinfo.st_atime, video['timestamp_modified']))
 
         print(f"{bcolors.OKGREEN}Finished processing media.{bcolors.ENDC}")
 
