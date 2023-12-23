@@ -27,7 +27,7 @@ import gi
 gi.require_version('GExiv2', '0.10')
 from gi.repository.GExiv2 import Metadata
 import subprocess
-from multiprocessing import Pool, cpu_count
+from multiprocessing import Pool, cpu_count, Queue, Process
 
 
 def limit_cpu():
@@ -38,8 +38,20 @@ def limit_cpu():
     p.nice(19)
 
 
-def unwrap_self(arg, **kwarg):
-    return MediaResizer.do_converstion(*arg, **kwarg)
+def unwrap_self_photos(arg, **kwarg):
+    return MediaResizer.resize_image(*arg, **kwarg)
+
+
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKCYAN = '\033[96m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
 
 
 class MediaResizerException(Exception):
@@ -57,7 +69,9 @@ class MediaResizer:
     _arguments = None
     _log_level = 'WARN'
     _default_size = 1920, 1080
+    _size_string = ''
     _folder = ''
+    _new_folder = ''
     _thread_list = []
 
     def __init__(self):
@@ -80,127 +94,163 @@ class MediaResizer:
         logging.basicConfig(level=self._log_level,
                             format='%(asctime)s %(message)s')
 
-    def resize_image(self, image, mime):
+    def consume_video(self, queue):
+        while True:
+            item = queue.get()
+            if item is None:
+                break
+            self.convert_video(item)
+
+    def resize_image(self, photo):
         """
         Resizes a single image.  Uses the mime type to determine what type of
         image to save and uses the file extension of the original in the new
         one.  This will need updated when the ability to output to a different
         format from the input is added.
 
-        :param image: Full path of image to be processed.
-        :param mime: Mime type of original image (same as new image for now).
+        :param photo: Dict with the following fields:
+                    "input": filename,
+                    "full_path": source full_path,
+                    "mime_type": source mime_type,
+                    "timestamp_accessed": source stinfo.st_atime,
+                    "timestamp_modified": source stinfo.st_mtime,
+                    "output": output file with full path
         """
         try:
-            full_path = os.path.join(self._folder, image)
-            im = Image.open(full_path)
-            # TODO(jreuter): Split this to a function.
-            # metadata = pyexiv2.ImageMetadata(full_path)
-            metadata = Metadata(full_path)
-            # metadata.read()
-            # print(metadata)
-            name, extension = os.path.splitext(image)
-            sub_type = mime.split('/')[1]
-            # TODO(jreuter): Store this in a variable to be re-used.
-            size_string = str(self._default_size[0]) + \
-                          'x' + str(self._default_size[1])
-            new_folder = 'resized_' + size_string
-            directory = os.path.join(self._folder, new_folder)
-            if not os.path.exists(directory):
-                os.makedirs(directory)
-            outfile = os.path.join(directory,
-                                   name + '_' + size_string + '.JPG')
-            logging.info('creating file for %s.' % outfile)
+            print(f"{bcolors.OKCYAN}Processing file {photo['input']} now.{bcolors.ENDC}")
+            im = Image.open(photo['full_path'])
+            metadata = Metadata(photo['full_path'])
+            if not os.path.exists(self._new_folder):
+                os.makedirs(self._new_folder)
+            outfile = photo['output']
+            logging.info(f"{bcolors.OKGREEN}Creating file for {outfile}{bcolors.ENDC}")
             im.thumbnail(self._default_size, Image.ANTIALIAS)
             im.save(outfile, 'jpeg')
             # TODO(jreuter): Split this out to a function.
-            # outfile_metadata = pyexiv2.ImageMetadata(outfile)
             outfile_metadata = Metadata(outfile)
-            # outfile_metadata.read()
             # We check for Tiff images.  If found, don't save comment data.
             if metadata.get_mime_type() == 'image/tiff':
+                # TODO (jreuter): See if we really need this.  I can't remember what we did differently with TIFF.
                 # params: destination, exif=True, iptc=True,
                 # xmp=True, comment=True
                 # metadata.copy(outfile_metadata, True, True, True, False)
                 # save all exif data of orinal image to resized
                 for tag in metadata.get_exif_tags():
-                    print("setting tag {} in file {}.".format(tag, outfile))
+                    logging.info("setting tag {} in file {}.".format(tag, outfile))
                     outfile_metadata[tag] = metadata[tag]
             else:
                 for tag in metadata.get_exif_tags():
-                    print("setting tag {} in file {}.".format(tag, outfile))
+                    logging.info("setting tag {} in file {}.".format(tag, outfile))
                     outfile_metadata[tag] = metadata[tag]
             outfile_metadata.save_file(outfile)
         except IOError:
-            logging.error('Cannot create new image for %s.' % image)
+            logging.error(f"{bcolors.FAIL}Cannot create new image for {photo['input']}{bcolors.ENDC}")
 
-    def convert_video(self, video, mime):
+    def convert_video(self, video):
         """
         Converts one video using HandBrakeCLI.  This currently only works on
         linux since it builds a full path to the binary in /usr/bin/.
 
-        :param video: Video file to convert.
-        :param mime: MimeType string of file.
+        :param video: Dict with the following fields:
+                    "input": filename,
+                    "full_path": source full_path,
+                    "mime_type": source mime_type,
+                    "timestamp_accessed": source stinfo.st_atime,
+                    "timestamp_modified": source stinfo.st_mtime,
+                    "output": output file with full path
         """
         try:
-            full_path = os.path.join(self._folder, video)
-            name, extension = os.path.splitext(video)
-            # TODO(jreuter): Store this in a variable to be re-used.
-            size_string = str(self._default_size[0]) + \
-                          'x' + str(self._default_size[1])
-            new_folder = 'resized_' + size_string
-            directory = os.path.join(self._folder, new_folder)
-            destination_file = os.path.join(directory, name + '.m4v')
+            print(f"{bcolors.OKCYAN}Processing file {video['input']} now.{bcolors.ENDC}")
             cores_to_use = max(cpu_count()-2, 1)
             thread_count = f"threads={cores_to_use}"
-            if not os.path.exists(directory):
-                os.makedirs(directory)
+            if not os.path.exists(self._new_folder):
+                os.makedirs(self._new_folder)
             handbrake_command = [
                 os.path.join(os.path.sep, 'usr', 'bin', 'HandBrakeCLI'),
                 '-v',
                 '-x', thread_count,
                 '-e', 'x264',
+                '-t', '1',
                 '--h264-profile', 'main',
-                # '--h264-level', '4',
                 '--x264-preset', 'slower',
                 '--quality', '21',
-                '-i', full_path,
-                '-o', destination_file
+                '-i', video['full_path'],
+                '-o', video['output']
             ]
-            logging.info('cmd is %s' % ' '.join(handbrake_command))
-            logging.info('Creating file %s.' % destination_file)
+            logging.info(f"cmd is {handbrake_command}")
+            logging.debug(f"Creating file {video['output']}")
             handbrake = subprocess.Popen(
                 handbrake_command,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE
             )
             out, err = handbrake.communicate()
-            if handbrake.returncode or err:
-                logging.error('Error from Handbrake %s.' % err)
-                return
-            logging.info('Done with video: %s.' % destination_file)
+            # TODO (jreuter): See if there's a way to add this back and not get errors that aren't really errors.
+            # if handbrake.returncode or err:
+                # Handbrake is returning errors that aren't really errors and I can't figure out an option to stop it.
+                # logging.error('Error from Handbrake %s.' % err)
+                # return
+            logging.info(f"Done with video: {video['output']}")
         except OSError as ex:
-            logging.error('OS Error: %s.' % ex)
+            logging.error(f"{bcolors.FAIL}OS Error: {ex}{bcolors.ENDC}")
         except IOError:
-            logging.error('Cannot create new video for %s.' % video)
+            logging.error(f"{bcolors.FAIL}Cannot create new video for {video['input']}{bcolors.ENDC}")
 
-    def do_converstion(self, medium):
-        print("Starting process for medium: %s." % medium)
-        # Get mime type (I hate that it's called magic).
-        # TODO(jreuter): Can we pull mimetype from pyexiv2?
-        mime = magic.Magic(mime=True)
-        mime_type = mime.from_file(os.path.join(self._folder, medium))
-        # If it's an image, pass to the image resizer.
-        # TODO(jreuter): Make this smarter since we can't process all types
-        # of images.
-        print("We are comparing this mime type {} for file {}".format(mime_type, medium))
-        if mime_type.startswith('image'):
-            self.resize_image(medium, mime_type)
-        elif mime_type.startswith('video'):
-            # TODO(jreuter): Queue videos and convert later.
-            self.convert_video(medium, mime_type)
-        elif mime_type == 'application/octet-stream':
-            print("Not processing file {}.".format(medium))
-        print("Done processing medium: %s." % medium)
+    def do_converstion(self, files):
+        videos = []  # os.path.join(self._new_folder, name + '_compressed' + '.m4v')
+        photos = []  # os.path.join(self._new_folder, name + '_' + self._size_string + '.JPG')
+        for file in files:
+            name, extension = os.path.splitext(file)
+            source_full_path = os.path.join(self._folder, file)
+            # TODO(jreuter): Can we pull mimetype from pyexiv2?
+            mime = magic.Magic(mime=True)
+            mime_type = mime.from_file(source_full_path)
+            stinfo = os.stat(source_full_path)
+            if mime_type.startswith('image'):
+                photos.append({
+                    "input": file,
+                    "full_path": source_full_path,
+                    "mime_type": mime_type,
+                    "timestamp_accessed": stinfo.st_atime,
+                    "timestamp_modified": stinfo.st_mtime,
+                    "output": os.path.join(self._new_folder, name + '_' + self._size_string + '.JPG')
+                })
+            elif mime_type.startswith('video'):
+                videos.append({
+                    "input": file,
+                    "full_path": source_full_path,
+                    "mime_type": mime_type,
+                    "timestamp_accessed": stinfo.st_atime,
+                    "timestamp_modified": stinfo.st_mtime,
+                    "output": os.path.join(self._new_folder, name + '_compressed' + '.m4v')
+                })
+            elif mime_type == 'application/octet-stream':
+                print(f"{bcolors.WARNING}Not processing file {file}.{bcolors.ENDC}")
+
+        print(f"\n{bcolors.UNDERLINE}{bcolors.OKGREEN}Processing Photos.{bcolors.ENDC}")
+        # Loop through file list for processing.
+        pool = Pool(max(cpu_count() - 2, 1), limit_cpu)
+        results = pool.map(unwrap_self_photos, list(zip([self] * len(photos), photos)))
+
+        print(f"\n{bcolors.UNDERLINE}{bcolors.OKGREEN}Adjusting photo timestamps.{bcolors.ENDC}")
+        for photo in photos:
+            stinfo = os.stat(photo['output'])
+            os.utime(photo['output'], (stinfo.st_atime, photo['timestamp_modified']))
+
+        print(f"\n{bcolors.UNDERLINE}{bcolors.OKGREEN}Processing Videos.{bcolors.ENDC}")
+        # Loop through file list for processing.
+        queue = Queue()
+        for video in videos:
+            queue.put(video)
+        queue.put(None)
+        video_process = Process(target=self.consume_video, args=(queue,))
+        video_process.start()
+        video_process.join()
+
+        print(f"\n{bcolors.UNDERLINE}{bcolors.OKGREEN}Adjusting video timestamps.{bcolors.ENDC}")
+        for video in videos:
+            stinfo = os.stat(video['output'])
+            os.utime(video['output'], (stinfo.st_atime, video['timestamp_modified']))
 
     def main(self):
         """
@@ -213,29 +263,26 @@ class MediaResizer:
 
         # Make sure it's a folder before processing.
         if os.path.isfile(self._folder):
-            logging.error('Program only handles folders.')
+            logging.error(f"{bcolors.WARNING}Program only handles folders.{bcolors.ENDC}")
             exit(1)
 
         # Make sure it's not a dot folder (may be removed later).
         if os.path.basename(self._folder).startswith('.'):
-            logging.info('Ignoring dot folders.')
+            logging.info(f"{bcolors.WARNING}Ignoring dot folders.{bcolors.ENDC}")
             exit()
 
-        size_string = str(self._default_size[0]) + \
+        self._size_string = str(self._default_size[0]) + \
                           'x' + str(self._default_size[1])
-        new_folder = 'resized_' + size_string
-        directory = os.path.join(self._folder, new_folder)
-        if not os.path.exists(directory):
-            os.makedirs(directory)
+        self._new_folder = os.path.join(self._folder, 'resized_' + self._size_string)
+        if not os.path.exists(self._new_folder):
+            os.makedirs(self._new_folder)
 
         # Get all files in the directory, but only files.
         files = [f for f in os.listdir(self._folder)
                  if os.path.isfile(os.path.join(self._folder, f))]
 
-        # Loop through file list for processing.
-        pool = Pool(max(cpu_count()-2, 1), limit_cpu)
-        results = pool.map(unwrap_self, list(zip([self]*len(files), files)))
-        print("Finished processing media.")
+        self.do_converstion(files)
+        print(f"{bcolors.OKGREEN}Finished processing media.{bcolors.ENDC}")
 
 
 if __name__ == '__main__':
