@@ -282,57 +282,6 @@ class MediaResizer:
                  if os.path.isfile(os.path.join(self._folder, f))]
 
         self.do_converstion(files)
-
-        # videos = []     # os.path.join(self._new_folder, name + '_compressed' + '.m4v')
-        # photos = []     # os.path.join(self._new_folder, name + '_' + self._size_string + '.JPG')
-        # for file in files:
-        #     name, extension = os.path.splitext(file)
-        #     source_full_path = os.path.join(self._folder, file)
-        #     # TODO(jreuter): Can we pull mimetype from pyexiv2?
-        #     mime = magic.Magic(mime=True)
-        #     mime_type = mime.from_file(source_full_path)
-        #     stinfo = os.stat(source_full_path)
-        #     if mime_type.startswith('image'):
-        #         photos.append({
-        #             "input": file,
-        #             "full_path": source_full_path,
-        #             "mime_type": mime_type,
-        #             "timestamp_accessed": stinfo.st_atime,
-        #             "timestamp_modified": stinfo.st_mtime,
-        #             "output": os.path.join(self._new_folder, name + '_' + self._size_string + '.JPG')
-        #         })
-        #     elif mime_type.startswith('video'):
-        #         videos.append({
-        #             "input": file,
-        #             "full_path": source_full_path,
-        #             "mime_type": mime_type,
-        #             "timestamp_accessed": stinfo.st_atime,
-        #             "timestamp_modified": stinfo.st_mtime,
-        #             "output": os.path.join(self._new_folder, name + '_compressed' + '.m4v')
-        #         })
-        #     elif mime_type == 'application/octet-stream':
-        #         print(f"{bcolors.WARNING}Not processing file {file}.{bcolors.ENDC}")
-        #
-        # print(f"\n{bcolors.UNDERLINE}{bcolors.OKGREEN}Processing Photos.{bcolors.ENDC}")
-        # # Loop through file list for processing.
-        # pool = Pool(max(cpu_count()-2, 1), limit_cpu)
-        # results = pool.map(unwrap_self_photos, list(zip([self]*len(photos), photos)))
-        #
-        # print(f"\n{bcolors.UNDERLINE}{bcolors.OKGREEN}Adjusting photo timestamps.{bcolors.ENDC}")
-        # for photo in photos:
-        #     stinfo = os.stat(photo['output'])
-        #     os.utime(photo['output'], (stinfo.st_atime, photo['timestamp_modified']))
-        #
-        # print(f"\n{bcolors.UNDERLINE}{bcolors.OKGREEN}Processing Videos.{bcolors.ENDC}")
-        # # Loop through file list for processing.
-        # pool = Pool(max(cpu_count() - 2, 1), limit_cpu)
-        # results = pool.map(unwrap_self_videos, list(zip([self] * len(videos), videos)))
-        #
-        # print(f"\n{bcolors.UNDERLINE}{bcolors.OKGREEN}Adjusting video timestamps.{bcolors.ENDC}")
-        # for video in videos:
-        #     stinfo = os.stat(video['output'])
-        #     os.utime(video['output'], (stinfo.st_atime, video['timestamp_modified']))
-
         print(f"{bcolors.OKGREEN}Finished processing media.{bcolors.ENDC}")
 
 
