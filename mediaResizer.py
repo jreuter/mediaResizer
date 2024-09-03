@@ -15,6 +15,8 @@ Options:
     --version       Show version.
     -q              Quiet the logging to only ERROR level.
     -v              Verbose output (INFO level).
+    --photos-only   Skip video encoding.
+    --videos-only   Skip photo encoding.
     --debug         Very Verbose output (DEBUG level).
 """
 from datetime import timezone, datetime, tzinfo, timedelta
@@ -77,6 +79,8 @@ class MediaResizer:
     _folder = ''
     _new_folder = ''
     _thread_list = []
+    _process_photos = True
+    _process_videos = True
 
     def __init__(self):
         """
@@ -84,6 +88,10 @@ class MediaResizer:
         """
         self._arguments = docopt(__doc__, version='0.1')
         self._set_logging_verbosity()
+        if self._arguments['--photos-only']:
+            self._process_videos = False
+        if self._arguments['--videos-only']:
+            self._process_photos = False
 
     def _set_logging_verbosity(self):
         """
@@ -241,41 +249,47 @@ class MediaResizer:
             elif mime_type == 'application/octet-stream':
                 print(f"{bcolors.WARNING}Not processing file {file}.{bcolors.ENDC}")
 
-        print(f"\n{bcolors.UNDERLINE}{bcolors.OKGREEN}Processing Photos.{bcolors.ENDC}")
-        # Loop through file list for processing.
-        pool = Pool(max(cpu_count() - 2, 1), limit_cpu)
-        results = pool.map(unwrap_self_photos, list(zip([self] * len(photos), photos)))
+        if self._process_photos:
+            print(f"\n{bcolors.UNDERLINE}{bcolors.OKGREEN}Processing Photos.{bcolors.ENDC}")
+            # Loop through file list for processing.
+            pool = Pool(max(cpu_count() - 2, 1), limit_cpu)
+            results = pool.map(unwrap_self_photos, list(zip([self] * len(photos), photos)))
 
-        print(f"\n{bcolors.UNDERLINE}{bcolors.OKGREEN}Adjusting photo timestamps.{bcolors.ENDC}")
-        for photo in photos:
-            stinfo = os.stat(photo['output'])
-            os.utime(photo['output'], (stinfo.st_atime, photo['timestamp_modified']))
+            print(f"\n{bcolors.UNDERLINE}{bcolors.OKGREEN}Adjusting photo timestamps.{bcolors.ENDC}")
+            for photo in photos:
+                stinfo = os.stat(photo['output'])
+                os.utime(photo['output'], (stinfo.st_atime, photo['timestamp_modified']))
+        else:
+            print(f"\n{bcolors.UNDERLINE}{bcolors.OKGREEN}Photo Processing Skipped.{bcolors.ENDC}")
 
-        print(f"\n{bcolors.UNDERLINE}{bcolors.OKGREEN}Processing Videos.{bcolors.ENDC}")
-        # Loop through file list for processing.
-        queue = Queue()
-        for video in videos:
-            queue.put(video)
-        queue.put(None)
-        video_process = Process(target=self.consume_video, args=(queue,))
-        video_process.start()
-        video_process.join()
+        if self._process_videos:
+            print(f"\n{bcolors.UNDERLINE}{bcolors.OKGREEN}Processing Videos.{bcolors.ENDC}")
+            # Loop through file list for processing.
+            queue = Queue()
+            for video in videos:
+                queue.put(video)
+            queue.put(None)
+            video_process = Process(target=self.consume_video, args=(queue,))
+            video_process.start()
+            video_process.join()
 
-        print(f"\n{bcolors.UNDERLINE}{bcolors.OKGREEN}Adjusting video timestamps.{bcolors.ENDC}")
-        for video in videos:
-            stinfo = os.stat(video['output'])
-            os.utime(video['output'], (stinfo.st_atime, video['timestamp_modified']))
-            # mp4 = MP4(video['output'])
-            # print(f"Tags: {mp4.pprint()}")
-            # metadata = Metadata(video['output'])
-            # print(f"Tags: {metadata.get_exif_tags()}")
-            # media_info = MediaInfo.parse(video['output'])
-            # general_track = media_info.general_tracks[0]
-            # print(f"Tags: {media_info.to_data()}")
-            # for track in media_info.tracks:
-            #     track.encoded_date = video['timestamp_modified']
-            # ffmpeg.input(video['output']).output(video['output'], metadata='creation_time=2015-10-21 07:28:00', map=0,
-            #                                      c='copy').overwrite_output().run()
+            print(f"\n{bcolors.UNDERLINE}{bcolors.OKGREEN}Adjusting video timestamps.{bcolors.ENDC}")
+            for video in videos:
+                stinfo = os.stat(video['output'])
+                os.utime(video['output'], (stinfo.st_atime, video['timestamp_modified']))
+                # mp4 = MP4(video['output'])
+                # print(f"Tags: {mp4.pprint()}")
+                # metadata = Metadata(video['output'])
+                # print(f"Tags: {metadata.get_exif_tags()}")
+                # media_info = MediaInfo.parse(video['output'])
+                # general_track = media_info.general_tracks[0]
+                # print(f"Tags: {media_info.to_data()}")
+                # for track in media_info.tracks:
+                #     track.encoded_date = video['timestamp_modified']
+                # ffmpeg.input(video['output']).output(video['output'], metadata='creation_time=2015-10-21 07:28:00', map=0,
+                #                                      c='copy').overwrite_output().run()
+        else:
+            print(f"\n{bcolors.UNDERLINE}{bcolors.OKGREEN}Video Processing Skipped.{bcolors.ENDC}")
 
     def main(self):
         """
