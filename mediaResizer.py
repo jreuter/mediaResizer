@@ -15,8 +15,12 @@ Options:
     --version       Show version.
     -q              Quiet the logging to only ERROR level.
     -v              Verbose output (INFO level).
+    --photos-only   Skip video encoding.
+    --videos-only   Skip photo encoding.
     --debug         Very Verbose output (DEBUG level).
 """
+from datetime import timezone, datetime, tzinfo, timedelta
+
 from docopt import docopt
 import logging
 import magic
@@ -26,6 +30,8 @@ from PIL import Image
 import gi
 gi.require_version('GExiv2', '0.10')
 from gi.repository.GExiv2 import Metadata
+from pymediainfo import MediaInfo
+import ffmpeg
 import subprocess
 from multiprocessing import Pool, cpu_count, Queue, Process
 
@@ -73,6 +79,8 @@ class MediaResizer:
     _folder = ''
     _new_folder = ''
     _thread_list = []
+    _process_photos = True
+    _process_videos = True
 
     def __init__(self):
         """
@@ -80,6 +88,10 @@ class MediaResizer:
         """
         self._arguments = docopt(__doc__, version='0.1')
         self._set_logging_verbosity()
+        if self._arguments['--photos-only']:
+            self._process_videos = False
+        if self._arguments['--videos-only']:
+            self._process_photos = False
 
     def _set_logging_verbosity(self):
         """
@@ -165,26 +177,34 @@ class MediaResizer:
             thread_count = f"threads={cores_to_use}"
             if not os.path.exists(self._new_folder):
                 os.makedirs(self._new_folder)
-            handbrake_command = [
-                os.path.join(os.path.sep, 'usr', 'bin', 'HandBrakeCLI'),
-                '-v',
-                '-x', thread_count,
-                '-e', 'x264',
-                '-t', '1',
-                '--h264-profile', 'main',
-                '--x264-preset', 'slower',
-                '--quality', '21',
-                '-i', video['full_path'],
-                '-o', video['output']
-            ]
-            logging.info(f"cmd is {handbrake_command}")
-            logging.debug(f"Creating file {video['output']}")
-            handbrake = subprocess.Popen(
-                handbrake_command,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE
-            )
-            out, err = handbrake.communicate()
+            # I did have this option **{'c:v': 'libx264'}, **{'c:a': 'copy'},  but ffmpeg didn't like video from the T5i
+            ffmpeg.input(video['full_path']).output(video['output'],
+                                                    metadata=f"creation_time={video['timestamp_modified']}",
+                                                    **{'c:v': 'libx264'},
+                                                    loglevel="quiet",
+                                                    movflags='faststart',
+                                                    preset='slower', crf=21).overwrite_output().run()
+
+            # handbrake_command = [
+            #     os.path.join(os.path.sep, 'usr', 'bin', 'HandBrakeCLI'),
+            #     '-v',
+            #     '-x', thread_count,
+            #     '-e', 'x264',
+            #     '-t', '1',
+            #     '--h264-profile', 'main',
+            #     '--x264-preset', 'slower',
+            #     '--quality', '21',
+            #     '-i', video['full_path'],
+            #     '-o', video['output']
+            # ]
+            # logging.info(f"cmd is {handbrake_command}")
+            # logging.debug(f"Creating file {video['output']}")
+            # handbrake = subprocess.Popen(
+            #     handbrake_command,
+            #     stdout=subprocess.PIPE,
+            #     stderr=subprocess.PIPE
+            # )
+            # out, err = handbrake.communicate()
             # TODO (jreuter): See if there's a way to add this back and not get errors that aren't really errors.
             # if handbrake.returncode or err:
                 # Handbrake is returning errors that aren't really errors and I can't figure out an option to stop it.
@@ -206,13 +226,15 @@ class MediaResizer:
             mime = magic.Magic(mime=True)
             mime_type = mime.from_file(source_full_path)
             stinfo = os.stat(source_full_path)
+            time = (datetime.fromtimestamp(stinfo.st_mtime))
+                    # + timedelta(hours=2))
             if mime_type.startswith('image'):
                 photos.append({
                     "input": file,
                     "full_path": source_full_path,
                     "mime_type": mime_type,
                     "timestamp_accessed": stinfo.st_atime,
-                    "timestamp_modified": stinfo.st_mtime,
+                    "timestamp_modified": time.timestamp(),
                     "output": os.path.join(self._new_folder, name + '_' + self._size_string + '.JPG')
                 })
             elif mime_type.startswith('video'):
@@ -221,36 +243,53 @@ class MediaResizer:
                     "full_path": source_full_path,
                     "mime_type": mime_type,
                     "timestamp_accessed": stinfo.st_atime,
-                    "timestamp_modified": stinfo.st_mtime,
+                    "timestamp_modified": time.timestamp(),
                     "output": os.path.join(self._new_folder, name + '_compressed' + '.m4v')
                 })
             elif mime_type == 'application/octet-stream':
                 print(f"{bcolors.WARNING}Not processing file {file}.{bcolors.ENDC}")
 
-        print(f"\n{bcolors.UNDERLINE}{bcolors.OKGREEN}Processing Photos.{bcolors.ENDC}")
-        # Loop through file list for processing.
-        pool = Pool(max(cpu_count() - 2, 1), limit_cpu)
-        results = pool.map(unwrap_self_photos, list(zip([self] * len(photos), photos)))
+        if self._process_photos:
+            print(f"\n{bcolors.UNDERLINE}{bcolors.OKGREEN}Processing Photos.{bcolors.ENDC}")
+            # Loop through file list for processing.
+            pool = Pool(max(cpu_count() - 2, 1), limit_cpu)
+            results = pool.map(unwrap_self_photos, list(zip([self] * len(photos), photos)))
 
-        print(f"\n{bcolors.UNDERLINE}{bcolors.OKGREEN}Adjusting photo timestamps.{bcolors.ENDC}")
-        for photo in photos:
-            stinfo = os.stat(photo['output'])
-            os.utime(photo['output'], (stinfo.st_atime, photo['timestamp_modified']))
+            print(f"\n{bcolors.UNDERLINE}{bcolors.OKGREEN}Adjusting photo timestamps.{bcolors.ENDC}")
+            for photo in photos:
+                stinfo = os.stat(photo['output'])
+                os.utime(photo['output'], (stinfo.st_atime, photo['timestamp_modified']))
+        else:
+            print(f"\n{bcolors.UNDERLINE}{bcolors.OKGREEN}Photo Processing Skipped.{bcolors.ENDC}")
 
-        print(f"\n{bcolors.UNDERLINE}{bcolors.OKGREEN}Processing Videos.{bcolors.ENDC}")
-        # Loop through file list for processing.
-        queue = Queue()
-        for video in videos:
-            queue.put(video)
-        queue.put(None)
-        video_process = Process(target=self.consume_video, args=(queue,))
-        video_process.start()
-        video_process.join()
+        if self._process_videos:
+            print(f"\n{bcolors.UNDERLINE}{bcolors.OKGREEN}Processing Videos.{bcolors.ENDC}")
+            # Loop through file list for processing.
+            queue = Queue()
+            for video in videos:
+                queue.put(video)
+            queue.put(None)
+            video_process = Process(target=self.consume_video, args=(queue,))
+            video_process.start()
+            video_process.join()
 
-        print(f"\n{bcolors.UNDERLINE}{bcolors.OKGREEN}Adjusting video timestamps.{bcolors.ENDC}")
-        for video in videos:
-            stinfo = os.stat(video['output'])
-            os.utime(video['output'], (stinfo.st_atime, video['timestamp_modified']))
+            print(f"\n{bcolors.UNDERLINE}{bcolors.OKGREEN}Adjusting video timestamps.{bcolors.ENDC}")
+            for video in videos:
+                stinfo = os.stat(video['output'])
+                os.utime(video['output'], (stinfo.st_atime, video['timestamp_modified']))
+                # mp4 = MP4(video['output'])
+                # print(f"Tags: {mp4.pprint()}")
+                # metadata = Metadata(video['output'])
+                # print(f"Tags: {metadata.get_exif_tags()}")
+                # media_info = MediaInfo.parse(video['output'])
+                # general_track = media_info.general_tracks[0]
+                # print(f"Tags: {media_info.to_data()}")
+                # for track in media_info.tracks:
+                #     track.encoded_date = video['timestamp_modified']
+                # ffmpeg.input(video['output']).output(video['output'], metadata='creation_time=2015-10-21 07:28:00', map=0,
+                #                                      c='copy').overwrite_output().run()
+        else:
+            print(f"\n{bcolors.UNDERLINE}{bcolors.OKGREEN}Video Processing Skipped.{bcolors.ENDC}")
 
     def main(self):
         """
