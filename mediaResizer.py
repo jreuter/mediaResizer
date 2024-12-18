@@ -19,9 +19,12 @@ Options:
     --videos-only   Skip photo encoding.
     --debug         Very Verbose output (DEBUG level).
 """
-from datetime import timezone, datetime, tzinfo, timedelta
-import pytz
+# from datetime import timezone, datetime, tzinfo, timedelta
+# import pytz
 # from zoneinfo import ZoneInfo
+from datetime import timezone, datetime, tzinfo, timedelta, time
+
+import pytz
 
 from docopt import docopt
 import logging
@@ -170,17 +173,19 @@ class MediaResizer:
         :param video: Dict with the following fields:
                     "input": filename,
                     "full_path": source full_path,
-                    "mime_type": source mime_type,
+                    "mime_type": source mime_typ    e,
                     "timestamp_accessed": source stinfo.st_atime,
                     "timestamp_modified": source stinfo.st_mtime,
                     "output": output file with full path
         """
         try:
             print(f"{bcolors.OKCYAN}Processing file {video['input']} now.{bcolors.ENDC}")
+            print(f"Timestamp is {video['timestamp_modified']}")
             cores_to_use = max(cpu_count()-2, 1)
             thread_count = f"threads={cores_to_use}"
             if not os.path.exists(self._new_folder):
                 os.makedirs(self._new_folder)
+            fmt_string = "%Y-%m-%d %H:%M:%S"
             # I did have this option **{'c:v': 'libx264'}, **{'c:a': 'copy'},  but ffmpeg didn't like video from the T5i
             ffmpeg.input(video['full_path']).output(video['output'],
                                                     metadata=f"creation_time={video['timestamp_modified']}",
@@ -231,8 +236,11 @@ class MediaResizer:
             mime_type = mime.from_file(source_full_path)
             stinfo = os.stat(source_full_path)
             # time = (datetime.fromtimestamp(stinfo.st_mtime, tz=ZoneInfo("America/New York")))
-            est = pytz.timezone('US/Eastern')
-            time = (datetime.fromtimestamp(stinfo.st_mtime, tz=est))
+            # est = pytz.timezone('US/Eastern')
+            # time = (datetime.fromtimestamp(stinfo.st_mtime, tz=est))
+            # TODO (Jarrod): Make the timezone a new flag option for this code.
+            dt = datetime.fromtimestamp(stinfo.st_mtime, tz=pytz.timezone('US/Eastern'))
+            # time = (datetime.fromtimestamp(stinfo.st_mtime, tz=pytz.timezone('US/Eastern')))
                     # + timedelta(hours=2))
             if mime_type.startswith('image'):
                 photos.append({
@@ -240,7 +248,7 @@ class MediaResizer:
                     "full_path": source_full_path,
                     "mime_type": mime_type,
                     "timestamp_accessed": stinfo.st_atime,
-                    "timestamp_modified": time.timestamp(),
+                    "timestamp_modified": dt.timestamp(),
                     "output": os.path.join(self._new_folder, name + '_' + self._size_string + '.JPG')
                 })
             elif mime_type.startswith('video'):
@@ -249,7 +257,7 @@ class MediaResizer:
                     "full_path": source_full_path,
                     "mime_type": mime_type,
                     "timestamp_accessed": stinfo.st_atime,
-                    "timestamp_modified": time.timestamp(),
+                    "timestamp_modified": dt.timestamp(),
                     "output": os.path.join(self._new_folder, name + '_compressed' + '.m4v')
                 })
             elif mime_type == 'application/octet-stream':
