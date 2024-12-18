@@ -20,6 +20,8 @@ Options:
     --debug         Very Verbose output (DEBUG level).
 """
 from datetime import timezone, datetime, tzinfo, timedelta
+import pytz
+# from zoneinfo import ZoneInfo
 
 from docopt import docopt
 import logging
@@ -30,10 +32,12 @@ from PIL import Image
 import gi
 gi.require_version('GExiv2', '0.10')
 from gi.repository.GExiv2 import Metadata
+# import exiv2
 from pymediainfo import MediaInfo
 import ffmpeg
 import subprocess
 from multiprocessing import Pool, cpu_count, Queue, Process
+
 
 
 def limit_cpu():
@@ -226,7 +230,9 @@ class MediaResizer:
             mime = magic.Magic(mime=True)
             mime_type = mime.from_file(source_full_path)
             stinfo = os.stat(source_full_path)
-            time = (datetime.fromtimestamp(stinfo.st_mtime))
+            # time = (datetime.fromtimestamp(stinfo.st_mtime, tz=ZoneInfo("America/New York")))
+            est = pytz.timezone('US/Eastern')
+            time = (datetime.fromtimestamp(stinfo.st_mtime, tz=est))
                     # + timedelta(hours=2))
             if mime_type.startswith('image'):
                 photos.append({
