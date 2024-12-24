@@ -209,7 +209,7 @@ class MediaResizer:
             # fmt_string = "%Y-%m-%d %H:%M:%S"
             # I did have this option **{'c:v': 'libx264'}, **{'c:a': 'copy'},  but ffmpeg didn't like video from the T5i
             ffmpeg.input(video['full_path']).output(video['output'],
-                                                    # metadata=f"{all_metadata} creation_time={video['timestamp_modified']}",
+                                                    metadata=f"creation_time={video['timestamp_modified']}",
                                                     **{'c:v': 'libx264'},
                                                     loglevel="quiet",
                                                     movflags='faststart',
@@ -261,6 +261,8 @@ class MediaResizer:
             # time = (datetime.fromtimestamp(stinfo.st_mtime, tz=est))
             # TODO (Jarrod): Make the timezone a new flag option for this code.
             # dt = datetime.fromtimestamp(stinfo.st_mtime, tz=pytz.timezone('US/Eastern'))
+            # time = (datetime.fromtimestamp(stinfo.st_mtime)
+            #         + timedelta(hours=self._time_shift))
             dt = (datetime.fromtimestamp(stinfo.st_mtime, tz=pytz.timezone('US/Eastern'))
                     + timedelta(hours=self._time_shift))
             if mime_type.startswith('image'):
@@ -324,20 +326,20 @@ class MediaResizer:
                     eh.__init__(check_tag_names=False)
                     # eh.execute("-api QuickTimeUTC=1")
                     eh.execute(
-                        "-tagsfromfile", f"{video['full_path']}", f"{video['output']}"
-                        # , "-overwrite_original"
+                        "-tagsfromfile", f"{video['full_path']}", f"{video['output']}", "-overwrite_original"
                     )
                     # timestamp = datetime(video['timestamp_modified']).strftime("%Y-%m-%d %H:%M:%S%z")
                     # timestamp = video['timestamp_modified'].strftime("%Y-%m-%d %H:%M:%S%z")
                     # timestamp = time.strftime("%Y-%m-%d %H:%M:%S%z", video['timestamp_modified'])
                     # print(f"timestamp is : {video['source_exif']['QuickTime:CreateDate']}")
                     # eh.execute("-api QuickTimeUTC=1",)
-                    stinfo = os.stat(video['output'])
-                    os.utime(video['output'], (stinfo.st_atime, video['timestamp_modified']))
+                    # stinfo = os.stat(video['output'])
+                    # os.utime(video['output'], (stinfo.st_atime, video['timestamp_modified']))
                     eh.execute(
-                        f"-DateTimeOriginal={video['source_exif']['QuickTime:CreateDate']}", f"{video['output']}"
-                    #     # , "-overwrite_original"
+                        f"-DateTimeOriginal={video['source_exif']['QuickTime:CreateDate']}",
+                        f"{video['output']}", "-overwrite_original"
                     )
+                    ## TODO: Test this, it didn't look like it worked as expected.
                     # if self._time_shift < 0:
                     #     eh.execute(
                     #         f"-AllDates+={self._time_shift}", f"{video['output']}"
@@ -346,6 +348,8 @@ class MediaResizer:
                     #     eh.execute(
                     #         f"-AllDates+={-self._time_shift}", f"{video['output']}"
                     #     )
+                stinfo = os.stat(video['output'])
+                os.utime(video['output'], (stinfo.st_atime, video['timestamp_modified']))
                 # subprocess.run(
                 #     ["exiftool", "-tagsfromfile", f"{video['full_path']}", f"{video['output']}"]
                 # )
