@@ -11,19 +11,21 @@ Usage:
     mediaResizer --version
 
 Options:
-    -h --help       Show this screen.
-    --version       Show version.
-    -q              Quiet the logging to only ERROR level.
-    -v              Verbose output (INFO level).
-    --photos-only   Skip video encoding.
-    --videos-only   Skip photo encoding.
-    --debug         Very Verbose output (DEBUG level).
+    -h --help               Show this screen.
+    --version               Show version.
+    -q                      Quiet the logging to only ERROR level.
+    -v                      Verbose output (INFO level).
+    --photos-only           Skip video encoding.
+    --videos-only           Skip photo encoding.
+    --time-shift=<+/-hours> Plus or Minus hours on the creation time.
+    --debug                 Very Verbose output (DEBUG level).
 """
 # from datetime import timezone, datetime, tzinfo, timedelta
 # import pytz
 # from zoneinfo import ZoneInfo
 from datetime import timezone, datetime, tzinfo, timedelta, time
 
+import exiftool
 import pytz
 
 from docopt import docopt
@@ -35,6 +37,8 @@ from PIL import Image
 import gi
 gi.require_version('GExiv2', '0.10')
 from gi.repository.GExiv2 import Metadata
+# import exiftool
+from exiftool import ExifToolHelper
 # import exiv2
 from pymediainfo import MediaInfo
 import ffmpeg
@@ -88,6 +92,7 @@ class MediaResizer:
     _thread_list = []
     _process_photos = True
     _process_videos = True
+    _time_shift = 0
 
     def __init__(self):
         """
@@ -99,6 +104,8 @@ class MediaResizer:
             self._process_videos = False
         if self._arguments['--videos-only']:
             self._process_photos = False
+        if self._arguments['--time-shift']:
+            self._time_shift = int(self._arguments['--time-shift'])
 
     def _set_logging_verbosity(self):
         """
@@ -180,15 +187,29 @@ class MediaResizer:
         """
         try:
             print(f"{bcolors.OKCYAN}Processing file {video['input']} now.{bcolors.ENDC}")
-            print(f"Timestamp is {video['timestamp_modified']}")
+            # print(f"Timestamp is {video['timestamp_modified']}")
             cores_to_use = max(cpu_count()-2, 1)
             thread_count = f"threads={cores_to_use}"
             if not os.path.exists(self._new_folder):
                 os.makedirs(self._new_folder)
-            fmt_string = "%Y-%m-%d %H:%M:%S"
+
+            # # Getting Exif Data from original file.
+            # print(f"\nExif data for file {video['full_path']}\n")
+            # with ExifToolHelper() as eh:
+            #     for tag in eh.get_metadata(video['full_path']):
+            #         for k, v in tag.items():
+            #             print(f"Dict {k}: {v}")
+
+            all_metadata = ""
+            for k, v in video['source_exif'].items():
+                all_metadata += str(f"{k}={v} ")
+                # all_metadata += str(f"** {'-metadata': '{k}={v}'},")
+            all_metadata = all_metadata[:-1]
+
+            # fmt_string = "%Y-%m-%d %H:%M:%S"
             # I did have this option **{'c:v': 'libx264'}, **{'c:a': 'copy'},  but ffmpeg didn't like video from the T5i
             ffmpeg.input(video['full_path']).output(video['output'],
-                                                    metadata=f"creation_time={video['timestamp_modified']}",
+                                                    # metadata=f"{all_metadata} creation_time={video['timestamp_modified']}",
                                                     **{'c:v': 'libx264'},
                                                     loglevel="quiet",
                                                     movflags='faststart',
@@ -239,9 +260,9 @@ class MediaResizer:
             # est = pytz.timezone('US/Eastern')
             # time = (datetime.fromtimestamp(stinfo.st_mtime, tz=est))
             # TODO (Jarrod): Make the timezone a new flag option for this code.
-            dt = datetime.fromtimestamp(stinfo.st_mtime, tz=pytz.timezone('US/Eastern'))
-            # time = (datetime.fromtimestamp(stinfo.st_mtime, tz=pytz.timezone('US/Eastern')))
-                    # + timedelta(hours=2))
+            # dt = datetime.fromtimestamp(stinfo.st_mtime, tz=pytz.timezone('US/Eastern'))
+            dt = (datetime.fromtimestamp(stinfo.st_mtime, tz=pytz.timezone('US/Eastern'))
+                    + timedelta(hours=self._time_shift))
             if mime_type.startswith('image'):
                 photos.append({
                     "input": file,
@@ -252,12 +273,22 @@ class MediaResizer:
                     "output": os.path.join(self._new_folder, name + '_' + self._size_string + '.JPG')
                 })
             elif mime_type.startswith('video'):
+                # Getting Exif Data from original file.
+                with ExifToolHelper() as eh:
+                    tag = eh.get_metadata(source_full_path)[0]
+                    # Can print for debugging like below.
+                    # for tag in eh.get_metadata(source_full_path):
+                    #     print(f"tag is : {tag}")
+                    # for k, v in tag.items():
+                    #     print(f"Dict {k}: {v}")
+
                 videos.append({
                     "input": file,
                     "full_path": source_full_path,
                     "mime_type": mime_type,
                     "timestamp_accessed": stinfo.st_atime,
                     "timestamp_modified": dt.timestamp(),
+                    "source_exif": tag,
                     "output": os.path.join(self._new_folder, name + '_compressed' + '.m4v')
                 })
             elif mime_type == 'application/octet-stream':
@@ -289,8 +320,64 @@ class MediaResizer:
 
             print(f"\n{bcolors.UNDERLINE}{bcolors.OKGREEN}Adjusting video timestamps.{bcolors.ENDC}")
             for video in videos:
-                stinfo = os.stat(video['output'])
-                os.utime(video['output'], (stinfo.st_atime, video['timestamp_modified']))
+                with ExifToolHelper() as eh:
+                    eh.__init__(check_tag_names=False)
+                    # eh.execute("-api QuickTimeUTC=1")
+                    eh.execute(
+                        "-tagsfromfile", f"{video['full_path']}", f"{video['output']}"
+                        # , "-overwrite_original"
+                    )
+                    # timestamp = datetime(video['timestamp_modified']).strftime("%Y-%m-%d %H:%M:%S%z")
+                    # timestamp = video['timestamp_modified'].strftime("%Y-%m-%d %H:%M:%S%z")
+                    # timestamp = time.strftime("%Y-%m-%d %H:%M:%S%z", video['timestamp_modified'])
+                    # print(f"timestamp is : {video['source_exif']['QuickTime:CreateDate']}")
+                    # eh.execute("-api QuickTimeUTC=1",)
+                    stinfo = os.stat(video['output'])
+                    os.utime(video['output'], (stinfo.st_atime, video['timestamp_modified']))
+                    eh.execute(
+                        f"-DateTimeOriginal={video['source_exif']['QuickTime:CreateDate']}", f"{video['output']}"
+                    #     # , "-overwrite_original"
+                    )
+                    # if self._time_shift < 0:
+                    #     eh.execute(
+                    #         f"-AllDates+={self._time_shift}", f"{video['output']}"
+                    #     )
+                    # elif self._time_shift > 0:
+                    #     eh.execute(
+                    #         f"-AllDates+={-self._time_shift}", f"{video['output']}"
+                    #     )
+                # subprocess.run(
+                #     ["exiftool", "-tagsfromfile", f"{video['full_path']}", f"{video['output']}"]
+                # )
+                # print(f"\nExif data for file {video['output']}\n")
+                # with ExifToolHelper() as eh:
+                #     eh.__init__(check_tag_names=False)
+                #     output_tag = eh.get_metadata(video['output'])[0]
+                #     # # Can print for debugging like below.
+                #     # for tag in eh.get_metadata(video['output']):
+                #     #     print(f"tag is : {tag}")
+                #     #     for k, v in tag.items():
+                #     #         print(f"Dict {k}: {v}")
+                #     output_exif_keys = list(output_tag.keys())
+                #     new_exif_data = {}
+                #     print(f"Source exif data: {video['source_exif']}")
+                #     for k, v in video['source_exif'].items():
+                #         print(f"Tag is {k} : {v}")
+                        # print(f"Checking key {k} is in list {output_exif_keys}")
+                #         if k not in output_exif_keys:
+                #             print(f"Adding {k} to output")
+                #             new_exif_data[str(k)] = v
+                #             # eh.set_tags(video['output'],tags={k:v},params=["-P", "-overwrite_original"])
+                #     # print(f"New tags are : {new_exif_data}")
+                #     # print(f"Video file is : {video['output']}")
+                #     eh.set_tags(video['output'],tags=new_exif_data)
+                #     # ,params=["-P", "-overwrite_original"])
+                #     # for k, v in new_exif_data.items():
+                #     #     eh.set_tags([video['output']],tags={str(k):v},params=["-P", "-overwrite_original"])
+
+                # stinfo = os.stat(video['output'])
+                # os.utime(video['output'], (stinfo.st_atime, video['timestamp_modified']))
+
                 # mp4 = MP4(video['output'])
                 # print(f"Tags: {mp4.pprint()}")
                 # metadata = Metadata(video['output'])
