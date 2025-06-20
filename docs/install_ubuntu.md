@@ -1,19 +1,17 @@
 # Installation steps for Ubuntu
 
-__Tested on 12.04 LTS version of Linux Mint__
+__Tested on 12.04, 14.04, 16.40 versions of Ubuntu__
 
-1.  Install PIP:
+1.  Add repository for handbrake:
 
-        # sudo apt-get install python-pip
+	# sudo add-apt-repository ppa:stebbins/handbrake-releases
+	# sudo apt-get update
 
-2.  Install PIL (if needed - I didn't need this on the latest machine.):
+2.  Install PIP and other dependencies:
 
-        # pip install PIL
+        # sudo apt-get install python-pip python-setuptools python-pyexiv2 python-imaging handbrake-cli
 
 3.  Install python-magic:
 
         # sudo pip install python-magic
 
-4.  Install pyexiv2 for EXIF data:
-
-        # sudo apt-get install python-pyexiv2
