@@ -21,7 +21,7 @@ pip3 install psutil pymediainfo pytz
 
 sudo apt install libcairo2-dev libgirepository-2.0-dev
 #pip3 install pycairo
-pip3 install PyGObject
+pip3 install PyGObject filemime
 
 # python3-pymediainfo is for getting creation date in video files.
 # libgexiv2-2 is to get metadata from images.
