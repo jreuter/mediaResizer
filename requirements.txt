@@ -1,0 +1,9 @@
+python-magic
+ffmpeg-python
+pyexiftool
+Pillow
+psutil
+pymediainfo
+pytz
+PyGObject
+docopt

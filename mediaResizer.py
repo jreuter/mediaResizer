@@ -34,9 +34,13 @@ import magic
 import os
 import psutil
 from PIL import Image
+# from PIL.ExifTags import TAGS
+# import mimetypes
+from filemime import filemime
 import gi
 gi.require_version('GExiv2', '0.10')
-from gi.repository.GExiv2 import Metadata
+# from gi.repository.GExiv2 import Metadata
+# from gi.repository import GExiv2
 # import exiftool
 from exiftool import ExifToolHelper
 # import exiv2
@@ -145,7 +149,16 @@ class MediaResizer:
         try:
             print(f"{bcolors.OKCYAN}Processing file {photo['input']} now.{bcolors.ENDC}")
             im = Image.open(photo['full_path'])
-            metadata = Metadata(photo['full_path'])
+            # metadata = Metadata(photo['full_path'])
+            # Getting Exif Data from original file.
+            # print(f"\nExif data for file {photo['full_path']}\n")
+            # with ExifToolHelper() as eh:
+            #     for tag in eh.get_metadata(photo['full_path']):
+            #         for k, v in tag.items():
+            #             print(f"Dict {k}: {v}")
+            file_obj = filemime()
+            mimetype = file_obj.load_file(photo['full_path'], mimeType=True)
+            print(f"mime-type: {mimetype}")
             if not os.path.exists(self._new_folder):
                 os.makedirs(self._new_folder)
             outfile = photo['output']
@@ -155,7 +168,8 @@ class MediaResizer:
             # TODO(jreuter): Split this out to a function.
             outfile_metadata = Metadata(outfile)
             # We check for Tiff images.  If found, don't save comment data.
-            if metadata.get_mime_type() == 'image/tiff':
+            # mimetypes.init()
+            if mimetype == 'image/tiff':
                 # TODO (jreuter): See if we really need this.  I can't remember what we did differently with TIFF.
                 # params: destination, exif=True, iptc=True,
                 # xmp=True, comment=True
