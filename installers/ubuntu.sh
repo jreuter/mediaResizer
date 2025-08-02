@@ -17,5 +17,5 @@ sudo apt-get install gir1.2-gexiv2-0.10 python3-gi libgirepository1.0-dev
 # Install Handbrake CLI
 #sudo add-apt-repository ppa:stebbins/handbrake-releases
 #sudo apt-get update
-#sudo apt-get install handbrake-cli
+sudo apt-get install handbrake-cli
 
