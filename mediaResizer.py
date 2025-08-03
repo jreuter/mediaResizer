@@ -124,7 +124,7 @@ class MediaResizer:
                 os.makedirs(self._new_folder)
             outfile = photo['output']
             logging.info(f"{bcolors.OKGREEN}Creating file for {outfile}{bcolors.ENDC}")
-            im.thumbnail(self._default_size, Image.ANTIALIAS)
+            im.thumbnail(self._default_size, Image.Resampling.LANCZOS)
             im.save(outfile, 'jpeg')
             # TODO(jreuter): Split this out to a function.
             outfile_metadata = Metadata(outfile)
